@@ -1,0 +1,128 @@
+{
+  "persona_id": "hw_06",
+  "source": "handwritten",
+  "language": "en",
+  "tier1": {
+    "display_name": "Ryan",
+    "age": 29,
+    "gender": "male",
+    "field": "Finance",
+    "career": "investment banker",
+    "location": "Dallas, TX"
+  },
+  "tier2": {
+    "goals": {
+      "fun_night_out": 0.3,
+      "get_a_date": 0.4,
+      "say_i_did_it": 0.3
+    },
+    "interests": {
+      "sports": 9,
+      "tvsports": 9,
+      "exercise": 8,
+      "dining": 7,
+      "museums": 2,
+      "art": 1,
+      "hiking": 3,
+      "gaming": 6,
+      "clubbing": 6,
+      "reading": 3,
+      "tv": 6,
+      "theater": 1,
+      "movies": 6,
+      "concerts": 4,
+      "music": 5,
+      "shopping": 5,
+      "yoga": 1
+    },
+    "top_interests": [
+      "sports",
+      "tvsports",
+      "exercise",
+      "dining",
+      "gaming"
+    ],
+    "habits": {
+      "go_out": "twice a week",
+      "date": "twice a month"
+    },
+    "self_ratings": {
+      "sinc": 6,
+      "intel": 8,
+      "fun": 7,
+      "amb": 10
+    },
+    "look_for": {
+      "sinc": 15.0,
+      "intel": 20.0,
+      "fun": 20.0,
+      "amb": 30.0,
+      "shar": 15.0
+    }
+  },
+  "tier3": {
+    "bigfive": {
+      "O": 0.25,
+      "C": 0.625,
+      "E": 0.625,
+      "A": 0.25,
+      "N": 0.5
+    },
+    "bigfive_source": "bfi10_self",
+    "bigfive_sd": null,
+    "attachment": null,
+    "boundaries": [
+      "does not share phone number or address on a first meeting"
+    ]
+  },
+  "narratives": [
+    "I am finishing a master's in finance and start at an investment bank in July.",
+    "I played college baseball and still check the box scores every morning.",
+    "On a free evening I like the gym, then a game at a sports bar.",
+    "I came tonight because my roommates bet I would not do it.",
+    "I do not see the point of art museums, and I will tell you that to your face.",
+    "Friends would say I am competitive about everything, even board games."
+  ],
+  "contexts": [
+    "speed_dating",
+    "running"
+  ],
+  "sizes": {
+    "speed_dating": [
+      2
+    ],
+    "running": [
+      2
+    ]
+  },
+  "capacity": {
+    "speed_dating": 3,
+    "running": 1
+  },
+  "schedule": [
+    "mon_am",
+    "tue_am",
+    "thu_am",
+    "sat_am",
+    "sat_pm"
+  ],
+  "schedule_pref": {
+    "speed_dating": {
+      "alpha": 0.0,
+      "h": 0,
+      "f": 1
+    },
+    "running": {
+      "alpha": 1.0,
+      "h": 1,
+      "f": 3
+    }
+  },
+  "field_coverage": {
+    "demographics": 1.0,
+    "goals": 1.0,
+    "interests": 1.0,
+    "self_ratings": 1.0,
+    "narrative": 1.0
+  }
+}

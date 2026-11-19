@@ -1,0 +1,87 @@
+# GNWT-TM parameters, Stage 1 rewrite (stage1.md, section 10.6).
+# src/gnwt/config.py validates this file against the Params model (wrong type, missing or unknown key:
+# stop immediately) and computes config_hash = SHA-256 of the normalized content.
+# The stage1 block holds PROCEDURES, GRIDS, PRIORS and SCALE DEFINITIONS only, never coefficients:
+# every number the model uses at run time lives in a locked artifact written by the offline steps.
+
+config_version: "2.0.0"
+global_seed: 20261106
+
+data:
+  raw_dir: data/raw
+  sealed_dir: data/sealed          # stage1/ never reads it (test U11)
+  datasets:
+    # Fisman, Iyengar, Kamenica & Simonson (2006), original Columbia Business School file
+    # (iid/pid, goal, field_cd, 17 interests, self ratings), hosted with Gelman & Hill's ARM examples.
+    columbia:
+      file: "Speed Dating Data.csv"
+      url: "https://www.stat.columbia.edu/~gelman/arm/examples/speed.dating/Speed%20Dating%20Data.csv"
+      md5: null
+    # OpenML 40536 "SpeedDating": the same experiment re-coded (123 columns, no iid/pid, no goal);
+    # person ids are reconstructed in gnwt/data/speed_dating.py.
+    speed_dating:
+      file: "SpeedDating.arff"
+      url: "https://openml.org/data/v1/download/13153954/SpeedDating.arff"
+      md5: "0c5590a0c81750687ee1b0ee68168a5d"
+  test_waves: []                   # sealed waves; empty = every wave is a development wave (cross-fit)
+  exclude_waves: []
+
+analysis:
+  bootstrap_B: 2000
+  alpha: 0.05
+  delta_auc_min: 0.03              # SESOI, TOST on +-0.03
+  ece_bins: 10
+
+bf_proxy:                          # offline, outside stage 1 (gnwt/data/bfi10.py)
+  method: unit_weighted_composite  # see CHANGELOG: replaces the LLM BFI-10 proxy of rev 110
+  min_items_per_trait: 1
+
+stage1:
+  core:
+    model: srrm_probit
+    multiplicative_rank: 0
+    sampler: {name: hoff_gibbs, chains: 4, rhat_max: 1.01, iter: 2000, burn: 1000, thin: 2,
+              crossfit_chains: 2}
+  features:
+    actor: [gender, bf, age, self_ratings]
+    partner: [bf, age, self_ratings]     # partner bf goes through (11a)
+    dyad: [same_goal, int_corr, jaccard_top5, abs_age_gap, same_field]
+    bf_similarity: false                 # ablation branch only
+    bf_standardize: z_within_fold
+    bf_reverse: [N]
+    trait_block_missing_if_ge: 3         # sensitivity [2, 4]
+    int_corr_min_common_items: 8         # sensitivity [5, 12]
+  personality_fit:
+    demand_scale: onet_wi                # D~ = D/3
+    demand_centering: none               # sensitivity: z_over_catalog
+    slope: shared                        # shared | per_trait
+    single_context_identification: delta_orthogonal_to_demand
+  priors:
+    coef_center: 0
+    scale_grid: [0.05, 0.1, 0.25, 0.5, 1.0]
+    intercept_sd: 1.0
+    context_sd: {family: half_cauchy, scale_grid: [0.05, 0.1, 0.25, 0.5, 1.0]}
+    covariance: lkj_eta_2                # sensitivity: inverse_wishart (Hoff)
+    variance_scale: {family: half_cauchy, scale: 1.0}
+  selection: {cv: nested_lowo, criterion: log_loss, tie_rule: one_se_prefer_shrinkage,
+              inner_estimator: laplace_map}
+  block_masking_rate_grid: [0.0, 0.15, 0.3, 0.5]
+  update: {method: laplace_batch}
+  context_reader:
+    lexicon: {path: data/lexicon/demand_lexicon_v1.yaml, sha256: null, min_entries_per_style_lang: 5}
+    catalog: {path: data/catalog/basic_contexts_v1.yaml, sha256: null, generic_prior: mean_of_catalog}
+    ngram_max: 4
+    toneless_match: unique_only
+    multi_match: longest_then_mean
+    cue_levels: {classes: [neg, rev, weak, base, strong], order: [neg, weak, base, strong],
+                 estimator: pav_least_squares, per_style: select_by_group_cv_1se}
+    prior_strength: {estimator: buhlmann_nonparametric, per_style: select_by_group_cv_1se,
+                     sensitivity_grid: [0.25, 0.5, 1, 2, 4]}
+    style_icc_min: 0.70
+    cv: group_kfold_by_basic_context
+    no_text_fallback: event_then_market
+    fallback_embedding: {enabled: false, model: intfloat/multilingual-e5-small, threshold: conformal,
+                         target_error: 0.10}
+  # O9: scripts/run_stage1.py writes every artifact with its sha256 into this manifest (one locked SRRM
+  # per market); the manifest itself is hashed into the `artifacts` table of the database.
+  locked: {manifest: artifacts/stage1/lock.json}

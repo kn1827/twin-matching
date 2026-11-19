@@ -1,0 +1,131 @@
+{
+  "persona_id": "hw_08",
+  "source": "handwritten",
+  "language": "en",
+  "tier1": {
+    "display_name": "Kevin",
+    "age": 26,
+    "gender": "male",
+    "field": "Computer Science",
+    "career": "machine learning researcher",
+    "location": "San Jose, CA"
+  },
+  "tier2": {
+    "goals": {
+      "meet_new_people": 0.3,
+      "get_a_date": 0.3,
+      "serious_relationship": 0.3,
+      "say_i_did_it": 0.1
+    },
+    "interests": {
+      "sports": 2,
+      "tvsports": 3,
+      "exercise": 3,
+      "dining": 5,
+      "museums": 5,
+      "art": 4,
+      "hiking": 5,
+      "gaming": 9,
+      "clubbing": 1,
+      "reading": 8,
+      "tv": 6,
+      "theater": 3,
+      "movies": 8,
+      "concerts": 3,
+      "music": 7,
+      "shopping": 2,
+      "yoga": 2
+    },
+    "top_interests": [
+      "gaming",
+      "reading",
+      "movies",
+      "music",
+      "tv"
+    ],
+    "habits": {
+      "go_out": "several times a year",
+      "date": "almost never"
+    },
+    "self_ratings": {
+      "sinc": 8,
+      "intel": 9,
+      "fun": 5,
+      "amb": 7
+    },
+    "look_for": {
+      "sinc": 25.0,
+      "intel": 25.0,
+      "fun": 15.0,
+      "amb": 10.0,
+      "shar": 25.0
+    }
+  },
+  "tier3": {
+    "bigfive": {
+      "O": 0.625,
+      "C": 0.5,
+      "E": 0.125,
+      "A": 0.5,
+      "N": 0.75
+    },
+    "bigfive_source": "bfi10_self",
+    "bigfive_sd": null,
+    "attachment": "anxious",
+    "boundaries": [
+      "does not share phone number or address on a first meeting",
+      "does not like being asked about his salary"
+    ]
+  },
+  "narratives": [
+    "I study computer science and want to work as a machine learning researcher.",
+    "I once spent a whole weekend rebuilding an old arcade machine from parts.",
+    "On a free evening I like video games, science fiction novels and a quiet apartment.",
+    "I came tonight because I almost never meet anyone outside my lab.",
+    "Talking to strangers makes my hands sweat, so I rehearse what I might say.",
+    "Friends would say I am funny once I relax, which takes a while."
+  ],
+  "contexts": [
+    "speed_dating",
+    "study_group"
+  ],
+  "sizes": {
+    "speed_dating": [
+      2
+    ],
+    "study_group": [
+      2
+    ]
+  },
+  "capacity": {
+    "speed_dating": 3,
+    "study_group": 1
+  },
+  "schedule": [
+    "mon_eve",
+    "tue_eve",
+    "wed_eve",
+    "thu_eve",
+    "fri_eve",
+    "sun_eve"
+  ],
+  "schedule_pref": {
+    "speed_dating": {
+      "alpha": 0.0,
+      "h": 0,
+      "f": 1
+    },
+    "study_group": {
+      "alpha": 0.5,
+      "h": 0,
+      "f": 2
+    }
+  },
+  "field_coverage": {
+    "demographics": 1.0,
+    "goals": 1.0,
+    "interests": 1.0,
+    "self_ratings": 1.0,
+    "narrative": 1.0
+  }
+}

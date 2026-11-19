@@ -1,0 +1,22 @@
+{
+ "catalog": {
+  "path": "data/catalog/basic_contexts_v1.yaml",
+  "sha256": "489493cee397b760434ab4e6f9309c8186baf6e8338cc3a724ec699197d52a70"
+ },
+ "config_version": "2.0.0",
+ "lexicon": {
+  "path": "data/lexicon/demand_lexicon_v1.yaml",
+  "sha256": "67aeb32409c3764bfe4ae3849cb426cda64622f810088b32dac92ea4f97abc82"
+ },
+ "reader": null,
+ "srrm": {
+  "columbia": {
+   "path": "artifacts\\stage1\\srrm_columbia_53691cce67a3.json",
+   "sha256": "53691cce67a384005ca2bb7a78e5e15095fc3132fa88351b125204762519a41d"
+  },
+  "speed_dating": {
+   "path": "artifacts\\stage1\\srrm_speed_dating_90669e4e8555.json",
+   "sha256": "90669e4e8555994d4257ef24a65b26ad372a6c26208bba9f2f4b75e96580bc8b"
+  }
+ }
+}

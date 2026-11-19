@@ -1,0 +1,27 @@
+# ILLUSTRATIVE catalog: the numbers of stage1.md section 3.5 ("[minh hoạ]: mọi số dựng để minh hoạ").
+# Used only by unit tests and scripts/demo_context.py, never by the Speed Dating pipeline.
+version: 0.0.1-illustrative
+illustrative: true
+rating_protocol: illustrative
+generic_prior: mean_of_catalog
+contexts:
+  - id: study_group
+    aliases: {vi: [học nhóm, nhóm học, ôn thi, nhóm ôn thi, làm bài tập nhóm], en: [study group, group study]}
+    goal_codes: [pass_exam, understand_deeply, homework]
+    profile:
+      DEP: {mean: 1.5}
+      DET: {mean: 1.5}
+      ACH: {mean: 1.5}
+      INN: {mean: 0.5}
+      CUR: {mean: 1.5}
+      AMB: {mean: 0.5}
+      SOC: {mean: 0.5}
+      LEA: {mean: 0.5}
+      COO: {mean: 2.0}
+      EMP: {mean: 1.0}
+      STR: {mean: 1.0}
+      SCT: {mean: 1.0}
+  - id: speed_dating
+    aliases: {vi: [hẹn hò nhanh, hẹn hò], en: [speed dating, speed dating event, dating]}
+    goal_codes: [fun_night, meet_new, get_date, serious, say_did, other]
+    profile: null

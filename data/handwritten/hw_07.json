@@ -1,0 +1,130 @@
+{
+  "persona_id": "hw_07",
+  "source": "handwritten",
+  "language": "en",
+  "tier1": {
+    "display_name": "Sofia",
+    "age": 23,
+    "gender": "female",
+    "field": "Fine Arts (MFA, painting)",
+    "career": "painter and art teacher",
+    "location": "Santa Fe, NM"
+  },
+  "tier2": {
+    "goals": {
+      "meet_new_people": 0.5,
+      "get_a_date": 0.3,
+      "other": 0.2
+    },
+    "interests": {
+      "sports": 1,
+      "tvsports": 1,
+      "exercise": 4,
+      "dining": 7,
+      "museums": 10,
+      "art": 10,
+      "hiking": 7,
+      "gaming": 3,
+      "clubbing": 4,
+      "reading": 8,
+      "tv": 3,
+      "theater": 8,
+      "movies": 8,
+      "concerts": 7,
+      "music": 9,
+      "shopping": 5,
+      "yoga": 6
+    },
+    "top_interests": [
+      "museums",
+      "art",
+      "music",
+      "reading",
+      "theater"
+    ],
+    "habits": {
+      "go_out": "once a week",
+      "date": "once a month"
+    },
+    "self_ratings": {
+      "sinc": 8,
+      "intel": 7,
+      "fun": 7,
+      "amb": 7
+    },
+    "look_for": {
+      "sinc": 20.0,
+      "intel": 20.0,
+      "fun": 20.0,
+      "amb": 5.0,
+      "shar": 35.0
+    }
+  },
+  "tier3": {
+    "bigfive": {
+      "O": 1.0,
+      "C": 0.375,
+      "E": 0.5,
+      "A": 0.5,
+      "N": 0.625
+    },
+    "bigfive_source": "bfi10_self",
+    "bigfive_sd": null,
+    "attachment": null,
+    "boundaries": [
+      "does not share phone number or address on a first meeting"
+    ]
+  },
+  "narratives": [
+    "I am doing an MFA in painting and want to teach art while I keep exhibiting.",
+    "My studio is a corner of my bedroom, and my roommate has learned to live with the smell of turpentine.",
+    "On a free evening I like a gallery opening, or wandering around until something catches my eye.",
+    "I came tonight because I want to collect stories, and maybe find someone who sees things a little differently.",
+    "I forget appointments, but I never forget a color."
+  ],
+  "contexts": [
+    "speed_dating",
+    "study_group"
+  ],
+  "sizes": {
+    "speed_dating": [
+      2
+    ],
+    "study_group": [
+      3,
+      4,
+      5
+    ]
+  },
+  "capacity": {
+    "speed_dating": 3,
+    "study_group": 2
+  },
+  "schedule": [
+    "mon_pm",
+    "wed_pm",
+    "fri_pm",
+    "fri_eve",
+    "sat_eve",
+    "sun_pm"
+  ],
+  "schedule_pref": {
+    "speed_dating": {
+      "alpha": 0.0,
+      "h": 0,
+      "f": 1
+    },
+    "study_group": {
+      "alpha": 0.0,
+      "h": 0,
+      "f": 1
+    }
+  },
+  "field_coverage": {
+    "demographics": 1.0,
+    "goals": 1.0,
+    "interests": 1.0,
+    "self_ratings": 1.0,
+    "narrative": 0.8333333333333334
+  }
+}

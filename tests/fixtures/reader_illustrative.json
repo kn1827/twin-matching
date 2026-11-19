@@ -1,0 +1,8 @@
+{
+  "provenance": "illustrative",
+  "note": "stage1.md section 3.5: theta_neg=-0.5, theta_base=2.0, theta_strong=2.7, k=0.5. theta_weak and theta_rev are not given there; 1.0 and -1.5 are placeholders that respect theta_neg <= theta_weak <= theta_base.",
+  "theta": {"neg": -0.5, "rev": -1.5, "weak": 1.0, "base": 2.0, "strong": 2.7},
+  "k": 0.5,
+  "icc": null,
+  "icc_min": 0.70
+}

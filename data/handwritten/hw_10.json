@@ -1,0 +1,116 @@
+{
+  "persona_id": "hw_10",
+  "source": "handwritten",
+  "language": "en",
+  "tier1": {
+    "display_name": "Ethan",
+    "age": 31,
+    "gender": "male",
+    "field": "Accounting",
+    "career": "accountant",
+    "location": "Burlington, VT"
+  },
+  "tier2": {
+    "goals": {
+      "fun_night_out": 0.4,
+      "say_i_did_it": 0.4,
+      "other": 0.2
+    },
+    "interests": {
+      "sports": 6,
+      "tvsports": 7,
+      "exercise": 3,
+      "dining": 6,
+      "museums": 2,
+      "art": 1,
+      "hiking": 3,
+      "gaming": 6,
+      "clubbing": 4,
+      "reading": 2,
+      "tv": 9,
+      "theater": 1,
+      "movies": 6,
+      "concerts": 3,
+      "music": 4,
+      "shopping": 3,
+      "yoga": 1
+    },
+    "top_interests": [
+      "tv",
+      "tvsports",
+      "sports",
+      "dining",
+      "gaming"
+    ],
+    "habits": {
+      "go_out": "twice a month",
+      "date": "several times a year"
+    },
+    "self_ratings": {
+      "sinc": 7,
+      "intel": 6,
+      "fun": 6,
+      "amb": 4
+    },
+    "look_for": {
+      "sinc": 25.0,
+      "intel": 15.0,
+      "fun": 30.0,
+      "amb": 5.0,
+      "shar": 25.0
+    }
+  },
+  "tier3": {
+    "bigfive": {
+      "O": 0.125,
+      "C": 0.125,
+      "E": 0.375,
+      "A": 0.375,
+      "N": 0.5
+    },
+    "bigfive_source": "bfi10_self",
+    "bigfive_sd": null,
+    "attachment": null,
+    "boundaries": [
+      "does not share phone number or address on a first meeting"
+    ]
+  },
+  "narratives": [
+    "I am doing a master's in accounting, mostly because my uncle runs a firm back home.",
+    "I like the same things I liked in high school, football on Sunday and the same diner breakfast.",
+    "On a free evening I like TV and takeout, and I am not big on trying new restaurants.",
+    "I came tonight because a friend dropped out and the ticket was already paid for.",
+    "Deadlines sneak up on me, and I usually finish things the night before."
+  ],
+  "contexts": [
+    "speed_dating"
+  ],
+  "sizes": {
+    "speed_dating": [
+      2
+    ]
+  },
+  "capacity": {
+    "speed_dating": 3
+  },
+  "schedule": [
+    "sat_pm",
+    "sat_eve",
+    "sun_pm",
+    "sun_eve"
+  ],
+  "schedule_pref": {
+    "speed_dating": {
+      "alpha": 0.0,
+      "h": 0,
+      "f": 1
+    }
+  },
+  "field_coverage": {
+    "demographics": 1.0,
+    "goals": 1.0,
+    "interests": 1.0,
+    "self_ratings": 1.0,
+    "narrative": 0.8333333333333334
+  }
+}

@@ -1,0 +1,140 @@
+{
+  "persona_id": "hw_03",
+  "source": "handwritten",
+  "language": "en",
+  "tier1": {
+    "display_name": "Claire",
+    "age": 25,
+    "gender": "female",
+    "field": "Social Work",
+    "career": "school counselor",
+    "location": "Columbus, OH"
+  },
+  "tier2": {
+    "goals": {
+      "meet_new_people": 0.4,
+      "get_a_date": 0.2,
+      "serious_relationship": 0.4
+    },
+    "interests": {
+      "sports": 3,
+      "tvsports": 2,
+      "exercise": 5,
+      "dining": 7,
+      "museums": 6,
+      "art": 6,
+      "hiking": 6,
+      "gaming": 2,
+      "clubbing": 3,
+      "reading": 8,
+      "tv": 6,
+      "theater": 7,
+      "movies": 8,
+      "concerts": 5,
+      "music": 7,
+      "shopping": 5,
+      "yoga": 8
+    },
+    "top_interests": [
+      "reading",
+      "movies",
+      "yoga",
+      "dining",
+      "theater"
+    ],
+    "habits": {
+      "go_out": "once a week",
+      "date": "once a month"
+    },
+    "self_ratings": {
+      "sinc": 9,
+      "intel": 7,
+      "fun": 7,
+      "amb": 6
+    },
+    "look_for": {
+      "sinc": 30.0,
+      "intel": 15.0,
+      "fun": 20.0,
+      "amb": 10.0,
+      "shar": 25.0
+    }
+  },
+  "tier3": {
+    "bigfive": {
+      "O": 0.75,
+      "C": 0.5,
+      "E": 0.5,
+      "A": 0.875,
+      "N": 0.375
+    },
+    "bigfive_source": "bfi10_self",
+    "bigfive_sd": null,
+    "attachment": "secure",
+    "boundaries": [
+      "does not share phone number or address on a first meeting",
+      "does not discuss the families she works with"
+    ]
+  },
+  "narratives": [
+    "I study social work and want to become a school counselor.",
+    "I volunteer on Saturday mornings at a community kitchen near campus.",
+    "On a free evening I like a yoga class and then a slow dinner with friends.",
+    "I came tonight because I want to meet kind people, and maybe someone to build a life with.",
+    "I hate seeing anyone left out of a conversation, so I am usually the one who pulls them back in.",
+    "Friends would say I am a good listener who should talk more about herself."
+  ],
+  "contexts": [
+    "speed_dating",
+    "study_group",
+    "running"
+  ],
+  "sizes": {
+    "speed_dating": [
+      2
+    ],
+    "study_group": [
+      3,
+      4
+    ],
+    "running": [
+      2
+    ]
+  },
+  "capacity": {
+    "speed_dating": 3,
+    "study_group": 2,
+    "running": 1
+  },
+  "schedule": [
+    "tue_eve",
+    "thu_eve",
+    "sat_am",
+    "sat_pm",
+    "sun_pm"
+  ],
+  "schedule_pref": {
+    "speed_dating": {
+      "alpha": 0.0,
+      "h": 0,
+      "f": 1
+    },
+    "study_group": {
+      "alpha": 0.5,
+      "h": 0,
+      "f": 1
+    },
+    "running": {
+      "alpha": 1.0,
+      "h": 1,
+      "f": 1
+    }
+  },
+  "field_coverage": {
+    "demographics": 1.0,
+    "goals": 1.0,
+    "interests": 1.0,
+    "self_ratings": 1.0,
+    "narrative": 1.0
+  }
+}

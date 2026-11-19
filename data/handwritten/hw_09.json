@@ -1,0 +1,141 @@
+{
+  "persona_id": "hw_09",
+  "source": "handwritten",
+  "language": "en",
+  "tier1": {
+    "display_name": "Grace",
+    "age": 30,
+    "gender": "female",
+    "field": "Public Health",
+    "career": "epidemiologist",
+    "location": "Raleigh, NC"
+  },
+  "tier2": {
+    "goals": {
+      "meet_new_people": 0.2,
+      "get_a_date": 0.2,
+      "serious_relationship": 0.6
+    },
+    "interests": {
+      "sports": 5,
+      "tvsports": 3,
+      "exercise": 8,
+      "dining": 7,
+      "museums": 6,
+      "art": 4,
+      "hiking": 8,
+      "gaming": 2,
+      "clubbing": 3,
+      "reading": 7,
+      "tv": 4,
+      "theater": 5,
+      "movies": 6,
+      "concerts": 5,
+      "music": 6,
+      "shopping": 4,
+      "yoga": 7
+    },
+    "top_interests": [
+      "exercise",
+      "hiking",
+      "dining",
+      "reading",
+      "yoga"
+    ],
+    "habits": {
+      "go_out": "once a week",
+      "date": "twice a month"
+    },
+    "self_ratings": {
+      "sinc": 9,
+      "intel": 8,
+      "fun": 7,
+      "amb": 8
+    },
+    "look_for": {
+      "sinc": 30.0,
+      "intel": 20.0,
+      "fun": 15.0,
+      "amb": 15.0,
+      "shar": 20.0
+    }
+  },
+  "tier3": {
+    "bigfive": {
+      "O": 0.5,
+      "C": 0.875,
+      "E": 0.625,
+      "A": 0.75,
+      "N": 0.25
+    },
+    "bigfive_source": "bfi10_self",
+    "bigfive_sd": null,
+    "attachment": "secure",
+    "boundaries": [
+      "does not share phone number or address on a first meeting"
+    ]
+  },
+  "narratives": [
+    "I am finishing a master's in public health and want to work as an epidemiologist.",
+    "I worked two years at a county health department before coming back to school.",
+    "On a free evening I like a long run along the river and then cooking for friends.",
+    "I came tonight because I am ready for a serious relationship and I like meeting people in person.",
+    "Friends would say I am organized, warm, and the one who remembers everyone's birthday."
+  ],
+  "contexts": [
+    "speed_dating",
+    "study_group",
+    "running"
+  ],
+  "sizes": {
+    "speed_dating": [
+      2
+    ],
+    "study_group": [
+      2,
+      3,
+      4
+    ],
+    "running": [
+      2,
+      3
+    ]
+  },
+  "capacity": {
+    "speed_dating": 3,
+    "study_group": 2,
+    "running": 2
+  },
+  "schedule": [
+    "mon_am",
+    "wed_am",
+    "fri_am",
+    "sat_am",
+    "sun_am",
+    "tue_eve"
+  ],
+  "schedule_pref": {
+    "speed_dating": {
+      "alpha": 0.0,
+      "h": 0,
+      "f": 1
+    },
+    "study_group": {
+      "alpha": 0.5,
+      "h": 0,
+      "f": 2
+    },
+    "running": {
+      "alpha": 1.0,
+      "h": 1,
+      "f": 3
+    }
+  },
+  "field_coverage": {
+    "demographics": 1.0,
+    "goals": 1.0,
+    "interests": 1.0,
+    "self_ratings": 1.0,
+    "narrative": 0.8333333333333334
+  }
+}

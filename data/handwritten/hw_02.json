@@ -1,0 +1,130 @@
+{
+  "persona_id": "hw_02",
+  "source": "handwritten",
+  "language": "en",
+  "tier1": {
+    "display_name": "Daniel",
+    "age": 27,
+    "gender": "male",
+    "field": "Mechanical Engineering",
+    "career": "robotics engineer",
+    "location": "Pittsburgh, PA"
+  },
+  "tier2": {
+    "goals": {
+      "meet_new_people": 0.3,
+      "get_a_date": 0.2,
+      "serious_relationship": 0.4,
+      "say_i_did_it": 0.1
+    },
+    "interests": {
+      "sports": 5,
+      "tvsports": 6,
+      "exercise": 7,
+      "dining": 5,
+      "museums": 4,
+      "art": 2,
+      "hiking": 6,
+      "gaming": 7,
+      "clubbing": 1,
+      "reading": 6,
+      "tv": 5,
+      "theater": 2,
+      "movies": 7,
+      "concerts": 3,
+      "music": 5,
+      "shopping": 2,
+      "yoga": 1
+    },
+    "top_interests": [
+      "exercise",
+      "gaming",
+      "movies",
+      "tvsports",
+      "hiking"
+    ],
+    "habits": {
+      "go_out": "twice a month",
+      "date": "several times a year"
+    },
+    "self_ratings": {
+      "sinc": 9,
+      "intel": 8,
+      "fun": 5,
+      "amb": 8
+    },
+    "look_for": {
+      "sinc": 30.0,
+      "intel": 25.0,
+      "fun": 10.0,
+      "amb": 15.0,
+      "shar": 20.0
+    }
+  },
+  "tier3": {
+    "bigfive": {
+      "O": 0.375,
+      "C": 0.875,
+      "E": 0.25,
+      "A": 0.5,
+      "N": 0.375
+    },
+    "bigfive_source": "bfi10_self",
+    "bigfive_sd": null,
+    "attachment": "avoidant",
+    "boundaries": [
+      "does not share phone number or address on a first meeting",
+      "does not talk about past relationships on a first meeting"
+    ]
+  },
+  "narratives": [
+    "I am in the third year of a PhD in mechanical engineering and want to build robots for warehouses.",
+    "I keep a spreadsheet of every bike ride I have done since 2021.",
+    "On a free evening I like a strategy game or a movie with one or two close friends.",
+    "I came tonight because my lab mate signed us both up, and I want something serious eventually.",
+    "Friends would say I am reliable and that I take a while to open up."
+  ],
+  "contexts": [
+    "speed_dating",
+    "study_group"
+  ],
+  "sizes": {
+    "speed_dating": [
+      2
+    ],
+    "study_group": [
+      2,
+      3
+    ]
+  },
+  "capacity": {
+    "speed_dating": 3,
+    "study_group": 1
+  },
+  "schedule": [
+    "mon_eve",
+    "tue_eve",
+    "wed_eve",
+    "thu_eve",
+    "sun_pm"
+  ],
+  "schedule_pref": {
+    "speed_dating": {
+      "alpha": 0.0,
+      "h": 0,
+      "f": 1
+    },
+    "study_group": {
+      "alpha": 1.0,
+      "h": 0,
+      "f": 3
+    }
+  },
+  "field_coverage": {
+    "demographics": 1.0,
+    "goals": 1.0,
+    "interests": 1.0,
+    "self_ratings": 1.0,
+    "narrative": 0.8333333333333334
+  }
+}

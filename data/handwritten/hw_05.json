@@ -1,0 +1,130 @@
+{
+  "persona_id": "hw_05",
+  "source": "handwritten",
+  "language": "en",
+  "tier1": {
+    "display_name": "Hannah",
+    "age": 24,
+    "gender": "female",
+    "field": "Law",
+    "career": "public defender",
+    "location": "Hartford, CT"
+  },
+  "tier2": {
+    "goals": {
+      "meet_new_people": 0.3,
+      "get_a_date": 0.2,
+      "serious_relationship": 0.5
+    },
+    "interests": {
+      "sports": 2,
+      "tvsports": 1,
+      "exercise": 5,
+      "dining": 6,
+      "museums": 7,
+      "art": 5,
+      "hiking": 4,
+      "gaming": 2,
+      "clubbing": 2,
+      "reading": 9,
+      "tv": 7,
+      "theater": 8,
+      "movies": 7,
+      "concerts": 4,
+      "music": 6,
+      "shopping": 4,
+      "yoga": 6
+    },
+    "top_interests": [
+      "reading",
+      "theater",
+      "museums",
+      "tv",
+      "movies"
+    ],
+    "habits": {
+      "go_out": "twice a month",
+      "date": "several times a year"
+    },
+    "self_ratings": {
+      "sinc": 9,
+      "intel": 8,
+      "fun": 6,
+      "amb": 9
+    },
+    "look_for": {
+      "sinc": 35.0,
+      "intel": 25.0,
+      "fun": 10.0,
+      "amb": 15.0,
+      "shar": 15.0
+    }
+  },
+  "tier3": {
+    "bigfive": {
+      "O": 0.5,
+      "C": 0.75,
+      "E": 0.375,
+      "A": 0.625,
+      "N": 0.875
+    },
+    "bigfive_source": "bfi10_self",
+    "bigfive_sd": null,
+    "attachment": "anxious",
+    "boundaries": [
+      "does not share phone number or address on a first meeting",
+      "does not want to be pressured to drink"
+    ]
+  },
+  "narratives": [
+    "I am in my second year of law school and want to work as a public defender.",
+    "Before an exam I reread my notes three times and still lie awake wondering what I missed.",
+    "On a free evening I like a novel and a cup of tea, or a play if a friend drags me out.",
+    "I came tonight because I want something serious, even though events like this make me nervous.",
+    "When a conversation goes quiet I worry that I said something wrong.",
+    "Friends would say I am loyal and that I prepare for everything."
+  ],
+  "contexts": [
+    "speed_dating",
+    "study_group"
+  ],
+  "sizes": {
+    "speed_dating": [
+      2
+    ],
+    "study_group": [
+      2,
+      3
+    ]
+  },
+  "capacity": {
+    "speed_dating": 3,
+    "study_group": 1
+  },
+  "schedule": [
+    "tue_pm",
+    "wed_pm",
+    "thu_pm",
+    "sun_am",
+    "sun_pm"
+  ],
+  "schedule_pref": {
+    "speed_dating": {
+      "alpha": 0.0,
+      "h": 0,
+      "f": 1
+    },
+    "study_group": {
+      "alpha": 1.0,
+      "h": 1,
+      "f": 2
+    }
+  },
+  "field_coverage": {
+    "demographics": 1.0,
+    "goals": 1.0,
+    "interests": 1.0,
+    "self_ratings": 1.0,
+    "narrative": 1.0
+  }
+}
