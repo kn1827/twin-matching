@@ -1,35 +1,27 @@
-"""Kaggle: chạy FULL so sánh twin "sửa phần dư của nền LR + MF" với logistic regression.
+"""Chạy FULL so sánh twin "sửa phần dư của nền LR + MF" với logistic regression (Kaggle hoặc máy có GPU).
 
-Một file duy nhất, không cần upload gì thêm: toàn bộ mã nguồn (src/lrmf_twin + experiments) được nhúng ở cuối
-file dạng zip base64 và giải nén vào /kaggle/working/lrmf_twin_code khi chạy.
-
-Cách dùng trên Kaggle
-1. New Notebook -> Settings: Accelerator = GPU T4 x2, Internet = On (tải dữ liệu + mô hình).
+Dùng từ repo đã clone; notebook kaggle/twin_lrmf_kaggle.ipynb làm sẵn các bước:
+1. Kaggle Notebook -> Settings: Accelerator = GPU T4 x2, Internet = On (tải dữ liệu + mô hình).
 2. (Tuỳ chọn) Add Input -> Models -> "Qwen2.5" transformers 7b-instruct: script tự tìm trong /kaggle/input;
    không có thì tải Qwen/Qwen2.5-7B-Instruct từ Hugging Face (~15 GB).
-3. Dán cả file này vào một ô code (hoặc upload rồi `!python kaggle_run_full.py`), Run All / Save & Run All.
+3. `!git clone https://github.com/kn1827/twin-matching.git` rồi `!python twin-matching/kaggle/run_full.py`.
 4. Kết quả: /kaggle/working/result/ (mỗi bộ dữ liệu một thư mục + overall_*.md|csv) và
-   /kaggle/working/result_bundle.zip để tải về. Bảng tổng hợp được in ra cuối log.
+   /kaggle/working/result_bundle.zip. Bảng tổng hợp in ở cuối log.
 
-Sửa khối CẤU HÌNH bên dưới để đổi bộ dữ liệu, chế độ, số ô gọi LLM. Mặc định ước khoảng 3-5 giờ trên T4 x2
+Đổi cấu hình bằng khối CẤU HÌNH hoặc biến môi trường LRMF_* (xem dưới). Mặc định ước 3-5 giờ trên T4 x2
 (phiên Kaggle tối đa 12 giờ); TIME_BUDGET_H chặn việc bắt đầu bộ dữ liệu mới khi đã gần hết giờ.
-
-File này được sinh bởi kaggle/build_kaggle_script.py - đừng sửa phần BUNDLE bằng tay.
 """
 
 from __future__ import annotations
 
-import base64
 import csv
 import glob
-import io
 import json
 import os
 import shutil
 import subprocess
 import sys
 import time
-import zipfile
 from datetime import datetime
 from pathlib import Path
 
@@ -63,7 +55,7 @@ HF_BATCH = int(_env("LRMF_HF_BATCH_SIZE", HF_BATCH))
 TIME_BUDGET_H = float(_env("LRMF_TIME_BUDGET_H", TIME_BUDGET_H))
 # =======================================================================
 
-# LRMF_KAGGLE_DRYRUN=1: kiểm tra cơ chế của script (giải nén, chạy, tổng hợp) với LLM mock và dữ liệu nhỏ
+# LRMF_KAGGLE_DRYRUN=1: kiểm tra cơ chế của script (chạy, tổng hợp) với LLM mock và dữ liệu nhỏ
 DRY_RUN = os.environ.get("LRMF_KAGGLE_DRYRUN") == "1"
 DRY_ARGS = ["--max-persons", "200", "--max-items", "80", "--bootstrap", "10", "--max-iter", "30",
             "--llm-cells", "6", "--n-sparse", "20"]
@@ -71,10 +63,8 @@ DRY_ARGS = ["--max-persons", "200", "--max-items", "80", "--bootstrap", "10", "-
 WORK = Path("/kaggle/working") if Path("/kaggle/working").exists() else Path.cwd()
 if os.environ.get("LRMF_KAGGLE_WORK"):
     WORK = Path(os.environ["LRMF_KAGGLE_WORK"])
-# LRMF_CODE_DIR: dùng mã từ repo đã git clone (notebook Kaggle) thay vì giải nén bản nhúng
-CODE = Path(os.environ["LRMF_CODE_DIR"]) if os.environ.get("LRMF_CODE_DIR") else WORK / "lrmf_twin_code"
+CODE = Path(__file__).resolve().parents[1]                 # gốc repo (chứa src/ và experiments/)
 RESULT = WORK / "result"
-BUNDLE_B64 = "__BUNDLE__"
 
 
 def sh(cmd: list[str], log_path: Path | None = None, env: dict | None = None) -> int:
@@ -93,24 +83,6 @@ def sh(cmd: list[str], log_path: Path | None = None, env: dict | None = None) ->
     if fh:
         fh.close()
     return proc.returncode
-
-
-def extract_code() -> None:
-    if os.environ.get("LRMF_CODE_DIR"):
-        if not (CODE / "experiments" / "compare_twin_vs_lr.py").exists():
-            sys.exit(f"LRMF_CODE_DIR={CODE} khong chua experiments/compare_twin_vs_lr.py")
-        print(f"code (repo) -> {CODE}", flush=True)
-        return
-    if CODE.exists():
-        shutil.rmtree(CODE)
-    CODE.mkdir(parents=True)
-    with zipfile.ZipFile(io.BytesIO(base64.b64decode(BUNDLE_B64))) as z:
-        z.extractall(CODE)
-    src = os.environ.get("LRMF_KAGGLE_DATA_SRC")             # dev only: reuse already downloaded data
-    if src and Path(src).exists():
-        shutil.copytree(src, CODE / "data", dirs_exist_ok=True,
-                        ignore=shutil.ignore_patterns("*.sqlite", "gss7224*.dta"))
-    print(f"code -> {CODE}", flush=True)
 
 
 def ensure_packages() -> None:
@@ -212,7 +184,7 @@ def overall_table(runs: dict[str, Path]) -> None:
 
 def main() -> None:
     t0 = time.time()
-    extract_code()
+    print(f"code -> {CODE}", flush=True)
     ensure_packages()
     n_gpu, vram = gpu_info()
     model = find_model()

@@ -44,9 +44,8 @@ Kết quả: `/kaggle/working/result/` (mỗi bộ dữ liệu một thư mục,
 !pip install -q sentence-transformers accelerate
 """),
     code("""
-# 3. Cấu hình: sửa ở đây (để trống = giá trị mặc định trong kaggle/kaggle_run_full.py)
+# 3. Cấu hình: sửa ở đây (để trống = giá trị mặc định trong kaggle/run_full.py)
 import os
-os.environ["LRMF_CODE_DIR"] = "/kaggle/working/twin-matching"
 os.environ["LRMF_DATASETS"] = "twin2k,gss,movielens"   # bỏ bớt để chạy nhanh hơn
 os.environ["LRMF_REGIMES"] = "R1,R2,R3,R4,R5,R6"
 os.environ["LRMF_LLM_MODEL"] = "Qwen/Qwen2.5-7B-Instruct"
@@ -60,7 +59,7 @@ os.environ["LRMF_TIME_BUDGET_H"] = "10.5"
 """),
     code("""
 # 4. Chạy full (log in trực tiếp; bảng tổng hợp ở cuối)
-!python /kaggle/working/twin-matching/kaggle/kaggle_run_full.py
+!python /kaggle/working/twin-matching/kaggle/run_full.py
 """),
     code("""
 # 5. Xem bảng tổng hợp
