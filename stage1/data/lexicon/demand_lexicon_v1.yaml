@@ -1,0 +1,109 @@
+# Context-demand lexicon v1 (tech spec 3.3 and 10.3), English only.
+# Words and direction (pole) ONLY: there is no weight in this file. The level of each cue class
+# (neg, rev, weak, base, strong) is estimated from rater labels (stage1/offline/reader.py).
+# Seed words are taken from the O*NET Work Styles definitions of each style and extended with
+# common synonyms. Hyphens are read as spaces ("detail-oriented" == "detail oriented").
+# Editing this file changes its sha256: theta and k must be re-estimated and the tests re-run.
+version: 1.0.0
+language: en
+styles_source: onet_2025_work_styles
+entries:
+  # --- C: Dependability ---------------------------------------------------------------------
+  - {style: DEP, pole: +1, en: [discipline, disciplined, self discipline, punctual, punctuality, on time,
+                                 deadline, deadlines, reliable, reliability, dependable, responsible,
+                                 responsibility, consistent, consistency, committed, commitment,
+                                 regular attendance, show up, keep promises]}
+  - {style: DEP, pole: -1, en: [late, show up late, flaky, flexible schedule, come and go, drop in,
+                                 irregular, miss deadlines, whenever]}
+  # --- C: Attention to Detail ---------------------------------------------------------------
+  - {style: DET, pole: +1, en: [careful, carefully, detail, details, detail oriented, attention to detail,
+                                 thorough, thoroughness, accurate, accuracy, precise, precision,
+                                 meticulous, double check, rigorous]}
+  - {style: DET, pole: -1, en: [sloppy, careless, rough, roughly, approximate, quick and dirty]}
+  # --- C: Achievement Orientation -----------------------------------------------------------
+  - {style: ACH, pole: +1, en: [high scores, high score, top grades, good grades, ambitious, ambition,
+                                 achieve, achievement, goal oriented, hard working, hardworking,
+                                 effort, strive, excel, results driven, high performance]}
+  - {style: ACH, pole: -1, en: [for fun, just for fun, casual, laid back, low key, no stakes]}
+  # --- O: Innovation ------------------------------------------------------------------------
+  - {style: INN, pole: +1, en: [creative, creativity, innovative, innovation, new ideas, fresh ideas,
+                                 original, originality, imaginative, inventive, brainstorm,
+                                 brainstorming, out of the box]}
+  - {style: INN, pole: -1, en: [follow the template, by the book, follow instructions, conventional,
+                                 routine]}
+  # --- O: Intellectual Curiosity ------------------------------------------------------------
+  - {style: CUR, pole: +1, en: [curious, curiosity, dig deep, dig deeper, in depth, deep understanding,
+                                 research, learn, learning, explore, exploring, inquisitive,
+                                 intellectual, open minded]}
+  - {style: CUR, pole: -1, en: [superficial, surface level, memorize, rote learning]}
+  # --- O: Tolerance for Ambiguity -----------------------------------------------------------
+  - {style: AMB, pole: +1, en: [flexible, flexibility, adaptable, adaptability, ambiguity, ambiguous,
+                                 uncertain, uncertainty, unclear, improvise, figure it out,
+                                 open ended, unstructured, spontaneous, go with the flow]}
+  - {style: AMB, pole: -1, en: [structured, clear plan, fixed plan, predictable, well defined,
+                                 step by step]}
+  # --- E: Social Orientation ----------------------------------------------------------------
+  - {style: SOC, pole: +1, en: [social, sociable, socialize, socializing, make friends, meet people,
+                                 meet new people, outgoing, friendly, mingle, chat, chatting, crowd,
+                                 crowded, networking, talkative, party]}
+  - {style: SOC, pole: -1, en: [quiet, alone, solo, on my own, by myself, introverted, solitary,
+                                 silent, silence]}
+  # --- E: Leadership Orientation ------------------------------------------------------------
+  - {style: LEA, pole: +1, en: [lead, leader, leadership, take charge, take the lead, coordinate,
+                                 coordinator, organize, organizer, presentation,
+                                 presentations, team lead, captain, run the group]}
+  - {style: LEA, pole: -1, en: [follower, follow along, take a back seat, stay in the background]}
+  # --- A: Cooperation -----------------------------------------------------------------------
+  - {style: COO, pole: +1, en: [cooperate, cooperation, cooperative, collaborate, collaboration,
+                                 collaborative, teamwork, team player, work together, help each other,
+                                 support each other, share, sharing]}
+  - {style: COO, pole: -1, en: [competitive, compete, competition, competing, rival, rivalry, opponent,
+                                 against each other, beat each other]}
+  # --- A: Empathy ---------------------------------------------------------------------------
+  - {style: EMP, pole: +1, en: [empathy, empathetic, empathic, understanding, caring, kind, kindness,
+                                 listen, listener, listening, supportive, compassionate, considerate,
+                                 warm]}
+  - {style: EMP, pole: -1, en: [blunt, harsh, indifferent, insensitive, dismissive]}
+  # --- ES: Stress Tolerance -----------------------------------------------------------------
+  - {style: STR, pole: +1, en: [pressure, high pressure, under pressure, stress, stressful, intense,
+                                 intensity, tight deadline, tight deadlines, fast paced, rush, rushed,
+                                 crunch, demanding, tough]}
+  - {style: STR, pole: -1, en: [relaxing, relaxed, low stress, stress free, easygoing, easy going, chill]}
+  # --- ES: Self-Control ---------------------------------------------------------------------
+  - {style: SCT, pole: +1, en: [calm, calmness, composed, patient, patience, self control, keep cool,
+                                 keep calm, stay calm, even tempered, level headed, restraint,
+                                 controlled]}
+  - {style: SCT, pole: -1, en: [hot headed, short tempered, impulsive, outbursts, lose temper,
+                                 temper tantrums, angry]}
+
+# Modifier phrases. "pre" modifiers act on every keyword after them until the next pre modifier or
+# the end of the clause; "post" modifiers act on every keyword before them in the same clause.
+modifiers:
+  strong:   {pos: pre,  en: [very, really, extremely, highly, absolutely, definitely, seriously, truly,
+                             super, must, must be, have to, has to, need to be, needs to be, essential,
+                             mandatory, required to be]}
+  weak:     {pos: pre,  en: [somewhat, a bit, a little, a little bit, slightly, fairly, rather, kind of,
+                             sort of, not too, not overly, not very, a little more]}
+  neg_pre:  {pos: pre,  en: [no need for, no need to, no need to be, "don't need", do not need,
+                             "doesn't need", does not need, "don't need to be", "doesn't have to be",
+                             does not have to be, "don't have to be", not necessary to, not required to,
+                             "needn't", no requirement for]}
+  neg_post: {pos: post, en: [not important, is not important, "isn't important", "doesn't matter",
+                             does not matter, "don't matter", not necessary, not needed, not required,
+                             optional, is optional, not a priority]}
+  prohibit: {pos: pre,  en: ["don't", do not, never, must not, "mustn't", "can't be", cannot be, avoid,
+                             no more]}
+  negator:  {pos: pre,  en: [not, "no", non, "isn't", "aren't", without]}
+
+# Fixed expressions, matched before every other rule. "{X}" marks the keyword slot.
+fixed:
+  - {pattern: "can't do without {X}", cls: strong}
+  - {pattern: "cannot do without {X}", cls: strong}
+  - {pattern: "{X} is a must", cls: strong}
+  - {pattern: "{X} is essential", cls: strong}
+  - {pattern: "{X} is required", cls: strong}
+  - {pattern: "{X} is crucial", cls: strong}
+  - {pattern: "not only {X} but also {Y}", cls: base}
+
+clause_split: {punct: [",", ";", ".", "!", "?", ":"], words: [but, however, although, though, whereas],
+               keep_bigrams: [but also]}

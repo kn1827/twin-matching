@@ -1,0 +1,112 @@
+# GNWT-TM parameters (Tech spec, section 2). The single file holding every numeric parameter.
+# src/gnwt/config.py reads it, validates it against the Params model (wrong type, missing or unknown
+# key: stop immediately) and computes config_hash = SHA-256 of the normalized content (comments do not
+# affect the hash). Parameters tagged "# E1" are replaced by calibrated values in the calibration week,
+# then frozen by bumping config_version to 1.1.0.
+
+config_version: "1.0.0"
+global_seed: 20261106
+
+llm:
+  # TEMPORARY (B1, see CHANGELOG.md): every role runs on local Ollama. The spec requires Gemini
+  # Flash-Lite for the twin and a model from a DIFFERENT family for judge / warmth / Big Five proxy,
+  # so judge, warmth and bfi_proxy scores from this configuration are not valid for the main experiments.
+  twin:      {provider: ollama, model: "qwen2.5:3b", temperature: 0.7}
+  judge:     {provider: ollama, model: "qwen2.5:3b", temperature: 0.0}
+  warmth:    {provider: ollama, model: "qwen2.5:3b", temperature: 0.0}
+  bfi_proxy: {provider: ollama, model: "qwen2.5:3b", temperature: 0.0, samples: 3}
+  max_output_tokens: {module: 350, synthesis: 500, judge: 300, warmth: 120, bfi_proxy: 200}
+  price_usd_per_mtok:   # local model: zero cost; token counts are still logged for re-estimation
+    twin:      {input: 0.0, output: 0.0}
+    judge:     {input: 0.0, output: 0.0}
+    warmth:    {input: 0.0, output: 0.0}
+    bfi_proxy: {input: 0.0, output: 0.0}
+  retry: {max_attempts: 5, base_delay_s: 2, max_delay_s: 60, json_repair_attempts: 1}
+  concurrency: 1               # local Ollama serves requests one at a time; use 20 with an API
+  requests_per_minute: null    # null = no limit; set to the account quota when using an API
+  timeout_s: 180               # spec: 60 s for an API; the local machine is much slower
+  cache_dir: data/cache
+  ollama:
+    base_url: "http://localhost:11434"
+    keep_alive: "30m"
+    num_ctx: 8192
+    num_gpu: 0                 # CPU only: the 2 GB GPU driver crashed under load; null = let Ollama decide
+
+core:
+  tau_base: 0.5                # (1)
+  tau_slope_O: 0.2             # (1)
+  style_threshold: 0.7         # style directive of the 4 modules
+  mask_cuts: [0.3, 0.6]        # mask step levels (section 7.4)
+  d_cuts: [0.15, 0.30]         # dissonance directive in Tier 4 (section 7.4)
+  risk_value: {Low: 0.2, Medium: 0.6, High: 1.0}
+  rag: {k: 1, max_l2sq: 1.2, embedding_model: all-MiniLM-L6-v2}
+  episodic: {max_snippets: 20, in_prompt: 5}
+  history_in_prompt: 8         # most recent messages put into the prompt
+  response_max_words: 60
+
+session:
+  rounds_T: 4                  # each twin reads and replies 4 times
+  opener: seeded_random        # who speaks first
+  language: en                 # vi for E4
+  modes: [free, full]
+
+affinity:
+  eta: {aff: 0.25, dir: 0.25, rec: 0.20, coh: 0.15, safe: 0.15}   # (16), E1
+  kappa_plus: 0.25             # (18), E1
+  kappa_minus: 0.35            # (18), E1
+  b_E: 1.0                     # E1
+  b_N: 1.0                     # E1
+  b_A: 1.0                     # E1
+  kappa_clip: [0.05, 0.9]
+  e_bar: 0.65                  # (19), E1
+  mask_center_A: 0.7           # (19)
+  mask_slope_s: 0.1            # (19), E1
+  nu_init: 0.4                 # (20)
+  eps_a: 0.01                  # (28)
+  bands: [0.35, 0.50, 0.65, 0.80]   # five readout bands, E1
+
+stage1:
+  mu: 0.5                      # (10)
+  kappa1: 0.7                  # (13)
+  kappa2: 0.3
+  rho_P: 1.5                   # (14)
+  rho_G: 1.0
+  pi_by_context:               # (11), each row sums to 1
+    speed_dating: {O: 0.20, C: 0.20, E: 0.20, A: 0.20, N: 0.20}
+    study_group:  {O: 0.20, C: 0.30, E: 0.15, A: 0.20, N: 0.15}
+    running:      {O: 0.15, C: 0.25, E: 0.25, A: 0.20, N: 0.15}
+
+stage3:
+  rho_I: 1.5                   # per session, (34)
+  rho_B: 0.25                  # per event, (35)
+  half_life_days: {P: 365, G: 60, I: 30, B: 45, f: 180}
+  sigma_u: 0.3                 # (31)
+  T_ref: 4                     # (34)
+  field_groups:                # (36): information value nu_f, sums to 1
+    demographics: 0.10
+    goals: 0.25
+    interests: 0.25
+    self_ratings: 0.20
+    narrative: 0.20
+
+stage4:
+  p: -1                        # (40)
+  z: 1.0                       # (41)
+  theta: 0.56                  # (44)
+  z_sigma: 1.0                 # (45)
+  kappa_T0: 0.15               # (38)
+  b_default: 3
+  ilp_time_limit_s: 60
+
+data:
+  raw_csv: data/raw/speed_dating.csv
+  sealed_dir: data/sealed
+  calib_dates: [80, 120]
+  test_dates: [1900, 2200]
+  exclude_waves: []            # filled in B6 after reading the column dictionary
+
+analysis:
+  bootstrap_B: 2000
+  alpha: 0.05
+  delta_auc_min: 0.03
+  fr_b: 3                      # capacity for wave-level matching when measuring FR, FP

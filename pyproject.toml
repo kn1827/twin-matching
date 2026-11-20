@@ -3,27 +3,32 @@ requires = ["setuptools>=69"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "lrmf-twin"
-version = "0.2.0"
-description = "Twin that corrects the residual of a frozen LR + MF base, compared with logistic regression"
+name = "gnwt"
+version = "2.0.0"
+description = "GNWT-TM Stage 1: keyword context reader + Hoff probit SRRM for directed first impressions"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.12"
 dependencies = [
-  "numpy>=1.26",
-  "scipy>=1.11",
-  "pandas>=2.1",
-  "scikit-learn>=1.4",
-  "joblib>=1.3",
-  "torch>=2.3",
-  "sentence-transformers>=3",
+  "pydantic>=2.14",
+  "pyyaml>=6",
+  "numpy>=2",
+  "scipy>=1.14",
+  "pandas>=2.2",
+  "scikit-learn>=1.5",
+  "threadpoolctl>=3",
+  "liac-arff>=2.5",
 ]
 
 [project.optional-dependencies]
-hf = ["transformers>=4.44", "accelerate>=0.33"]          # provider hf: (Kaggle)
-dev = ["pytest>=8"]
+baselines = ["catboost>=1.2", "xgboost>=2", "lightgbm>=4", "interpret-core>=0.6", "torch>=2.3"]
+embed = ["sentence-transformers>=3"]          # optional fallback, off by default
+dev = ["pytest>=9", "hypothesis>=6", "mypy>=1.10", "types-PyYAML"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+gnwt = ["db/schema.sql"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

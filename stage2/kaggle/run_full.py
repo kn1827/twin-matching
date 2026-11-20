@@ -4,7 +4,7 @@ Dùng từ repo đã clone; notebook kaggle/twin_lrmf_kaggle.ipynb làm sẵn c�
 1. Kaggle Notebook -> Settings: Accelerator = GPU T4 x2, Internet = On (tải dữ liệu + mô hình).
 2. (Tuỳ chọn) Add Input -> Models -> "Qwen2.5" transformers 7b-instruct: script tự tìm trong /kaggle/input;
    không có thì tải Qwen/Qwen2.5-7B-Instruct từ Hugging Face (~15 GB).
-3. `!git clone https://github.com/kn1827/twin-matching.git` rồi `!python twin-matching/kaggle/run_full.py`.
+3. `!git clone https://github.com/kn1827/twin-matching.git` rồi `!python twin-matching/stage2/kaggle/run_full.py`.
 4. Kết quả: /kaggle/working/result/ (mỗi bộ dữ liệu một thư mục + overall_*.md|csv) và
    /kaggle/working/result_bundle.zip. Bảng tổng hợp in ở cuối log.
 
@@ -63,7 +63,7 @@ DRY_ARGS = ["--max-persons", "200", "--max-items", "80", "--bootstrap", "10", "-
 WORK = Path("/kaggle/working") if Path("/kaggle/working").exists() else Path.cwd()
 if os.environ.get("LRMF_KAGGLE_WORK"):
     WORK = Path(os.environ["LRMF_KAGGLE_WORK"])
-CODE = Path(__file__).resolve().parents[1]                 # gốc repo (chứa src/ và experiments/)
+CODE = Path(__file__).resolve().parents[1]                 # gốc stage2/ (chứa src/ và experiments/)
 RESULT = WORK / "result"
 
 

@@ -1,4 +1,4 @@
-# environments and caches
+# environments and caches (any depth)
 .venv/
 .cache/
 .hypothesis/
@@ -6,12 +6,13 @@ __pycache__/
 *.egg-info/
 .pytest_cache/
 .claude/
+catboost_info/
 
 # data: downloaded by the code (Twin-2K: CC-BY; GSS: NORC; MovieLens: no redistribution)
-data/raw/
-data/processed/
-data/cache/
-data/gnwt.db
+**/data/raw/
+**/data/processed/
+**/data/cache/
+*.db
 
 # run outputs
-result/
+**/result/

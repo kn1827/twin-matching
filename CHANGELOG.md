@@ -1,65 +1,59 @@
 # CHANGELOG
 
-Ghi mọi chỗ bản hiện thực lệch khỏi thiết kế "Twin sửa phần dư của nền LR + MF", kèm lý do. Nhãn **[đề xuất]**,
-**[quy ước]** dùng như trong đặc tả.
+Ghi mọi chỗ bản hiện thực lệch khỏi một quy tắc **NÊN** của Đặc tả kỹ thuật, kèm lý do (Đặc tả Mục 0).
+Chỗ lệch một quy tắc **PHẢI** không được ghi ở đây mà phải sửa đặc tả và đề cương cùng lúc.
 
-## lrmf_twin 0.2.0 — GSS + MovieLens-1M, chế độ R3/R5/R6, Kaggle (19/11/2026)
+## B1 — khung dự án, LLM client, ghi chi phí (07/11/2026)
 
-- **Bộ dữ liệu** (chốt với người dùng sau khi tra cứu): GSS 1972–2024 (NORC, Release 3a; Kim & Lee, Chen et al.
-  2026, AlignSurvey) và MovieLens-1M (Kang et al., KAR, CoLLM, BinLLM, FLIP, LLMRank). Twin-2K giữ nguyên;
-  chế độ nào bộ dữ liệu không có thì để trống (chỉ R3 trên Twin-2K).
-- **GSS [quy ước]**: người 2000–2024 có ≥ 20 câu trả lời; câu = biến sau `natspac` theo thứ tự file, có nhãn giá
-  trị, 2–10 mã hợp lệ, ≥ 2.000 câu trả lời; bỏ biến hành chính, danh sách hộ/mạng quan hệ, điều kiện khảo sát
-  tiếp, biến tổng hợp chứa nhãn (wordsum), biến nhân khẩu đã dùng làm đặc trưng, và bản biến thể theo chế độ
-  phỏng vấn của một câu đã giữ (abanyg, trustv, trustnv…; abany/abanyg có 647 người trả lời cả hai). Kết quả
-  36.055 người × 380 câu, 3,95 triệu ô. Văn bản câu = nhãn biến Stata (ngắn) + nhãn giá trị. Đợt = năm khảo sát.
-- **MovieLens-1M [quy ước]**: y = 1{điểm ≥ 4}; phim có ≥ 20 đánh giá (3.043 phim, 99,5% đánh giá); "câu hỏi" =
-  tên + năm + thể loại; đợt = quý của lần đánh giá; đặc trưng người = giới, nhóm tuổi, nghề. Θ ("câu trả lời
-  khác") chỉ dùng 800 phim nhiều đánh giá nhất làm đặc trưng (`max_feat_items`).
-- **Chế độ mới**: R3 giữ lại nguyên khối (câu, đợt) như retrodiction của Kim & Lee; R5 người mới (0 câu đã
-  biết, T3 chỉ dựa vào nhân khẩu); R6 câu lạnh mô phỏng (giữ 5 câu trả lời/câu) cho mọi bộ dữ liệu, thay vì
-  câu lạnh tự nhiên, để ba bộ dữ liệu cùng một định nghĩa.
-- **LR theo từng câu bằng torch** (mặc định, GPU nếu có): cùng mô hình với sklearn (λ = 1/C, chặn gần như không
-  phạt), khớp mọi câu một lần; test kiểm khớp sklearn (tương quan > 0,999). sklearn vẫn dùng được
-  (`--lr-engine sklearn`) cho dữ liệu nhỏ.
-- **B0** làm trơn bằng 2 câu trả lời giả theo tỉ lệ chung (câu lạnh 5 câu trả lời giống nhau không còn ra 0/1).
-- **LLM**: provider `hf:` (transformers trong tiến trình, fp16, greedy, sinh theo lô `LRMF_HF_BATCH`, lượng tử
-  hoá tuỳ chọn `LRMF_HF_QUANT=4bit|8bit`, khoá cache tách riêng khi lượng tử hoá); T3/T5 gọi theo lô mỗi fold.
-- **Kaggle**: notebook `kaggle/twin_lrmf_kaggle.ipynb` clone repo và chạy `kaggle/run_full.py`: tải dữ liệu, ba bộ dữ liệu × R1–R6
-  với Qwen2.5-7B-Instruct, in và lưu bảng tổng hợp `overall_*.md|csv`, nén `result_bundle.zip`.
+### Lệch tạm thời, PHẢI trả trước E1
 
-## lrmf_twin 0.1.0 — twin sửa phần dư của nền LR + MF (18/11/2026)
+- **LLM chạy local qua Ollama (`qwen2.5:3b`) cho cả bốn vai trò** thay vì Gemini Flash-Lite cho twin và
+  một mô hình khác họ cho giám khảo, độ ấm, Big Five proxy (Mục 1, Mục 2). Lý do: chưa có khoá API; dựng
+  và kiểm thử lõi trước. Hệ quả:
+  - chi phí ghi 0 vì giá trong `params.yaml` là 0 cho mô hình local; số token vẫn ghi đủ trong
+    `api_calls`, nên ước lượng lại chi phí theo bảng giá API được bằng một truy vấn;
+  - giám khảo cùng họ với twin, nên mọi điểm judge, warmth, bfi_proxy trên cấu hình này chỉ dùng để
+    thử luồng, không dùng cho số đo nào của đề cương;
+  - độ trễ đo được (khoảng 20 s mỗi lời gọi ngắn khi mô hình đã nạp, máy có GPU 2 GB) không đại diện
+    cho API; mốc độ trễ và chi phí của B5 phải đo lại trên mô hình thật.
+  - Việc cần làm khi có khoá: cài provider `gemini` trong `src/gnwt/llm/providers.py` (hiện ném
+    `NotImplementedError`), đổi `llm.*.provider/model`, điền giá theo bảng giá chính thức, đặt
+    `concurrency: 20`, `timeout_s: 60`, `requests_per_minute` theo hạn mức.
 
-Gói `src/lrmf_twin/`. Dựng theo "Thiết kế twin lồng LR MF" (mục 4–6) trên
-Twin-2K-500. Chỗ thiết kế để ngỏ và chỗ lệch:
+### Lệch có chủ ý (NÊN)
 
-- **Nhãn [quy ước]**: thiết kế chỉ nói "nhị phân hoặc từng lựa chọn". Câu có thứ tự (Likert, Bipolar, slider,
-  BDI = mức nặng nhất được đánh dấu, MC ngoài phần nhận thức) → y = 1{giá trị > điểm cắt}, điểm cắt cho tỉ lệ
-  dương gần 0,5 nhất (chỉ dùng phân phối biên của câu); câu 2 lựa chọn → y = 1{lựa chọn 1}; MC nhận thức ≥ 3
-  lựa chọn → y = 1{lựa chọn phổ biến nhất}. Bỏ câu tự điền (TE), DB, Wason (MAHR), câu < 200 trả lời hoặc tỉ lệ
-  dương ngoài [0,05; 0,95]. Không dùng wave 4 (lặp lại wave 1–3, sẽ rò nhãn). Nhân khẩu là đặc trưng, không là nhãn.
-- **Chế độ**: có R1 (dày), R4 (người thưa, `n_known` câu), R2 (câu mới). R3 (đợt khuyết), R5, R6 không có trên
-  Twin-2K. Fold nền theo đúng chế độ (ô ngẫu nhiên / người thưa / câu), còn tầng kết hợp T6–T9 cross-fit theo
-  nhóm người, gộp mẫu của mọi chế độ để cổng T7 học từ z.
-- **T1**: "LR" trong nền gồm hiệu ứng cố định của câu, hệ số riêng theo câu cho nhân khẩu và cho câu trả lời
-  khác của người (đường chéo bị khoá), khớp đồng thời với MF hạng 16. λ chọn trên một tách trong của ô huấn
-  luyện fold 0 R1 rồi khoá: λ_Θ = 200 (≈ 1/C của LR sklearn tốt nhất, C ≈ 0,005), λ_W = 100. LR văn bản (R2): C = 0,005
-  chọn trên tách câu-mới trong của câu huấn luyện fold 0 R2. Lưu ý: các tách phát triển này lấy từ toàn bộ
-  ma trận nên chồng với ô kiểm tra của lần chạy chính; chỉ 2–3 siêu tham số toàn cục, chọn cùng cách cho LR và nền.
-- **T2**: đầu ngữ nghĩa chỉ sinh b_j và v_j (đúng "nhân tử câu hỏi kiểu MF và hiệu ứng câu hỏi"); thêm W_j
-  (`sem_targets="bwv"`) làm quá khớp trên tách trong. Embedder mặc định all-MiniLM-L6-v2 (không phải LLM);
-  `--embedder ollama:qwen2.5:3b` là bản "embedding LLM".
-- **T3**: tiền nghiệm đi vào dưới dạng nhãn mềm trên 8 câu neo (nhân tử MF lớn, không cộng tuyến), trọng số
-  n0/(n0 + n_p), n0 = 10, chỉ cho người có ≤ 25 câu đã biết [đề xuất].
-- **T5**: 1 lời gọi/ô, T = 0, JSON `{"p": [...]}`; P(y = 1) = tổng xác suất các lựa chọn dương; lỗi → D = NaN
-  → D~ = 0. Chỉ chạy trên `--llm-cells` ô mỗi chế độ (mặc định 30) vì qwen2.5:3b trên CPU mất ~12 s/lời gọi.
-- **T6** hồi quy D trên [1, η, η²] của η_B4. **T7** cổng σ(a0 − softplus·log1p(n_p) − softplus·log1p(n_j) +
-  softplus·new_item). **T8** trên {B2, B3, B4, B7, B8}. **T9** Platt toàn cục, co về hiệu chuẩn đồng nhất (a = 0, b = 1) với trọng số 5 quan sát
-  giả, vì mẫu tầng 2 nhỏ (chưa theo từng câu). Với vài chục ô, T9 vẫn có thể làm log-loss của B9 xấu đi.
-- **Kiểm định**: LR test của β (offset η_B4) + Holm trên chế độ × biến thể; ΔAUC/Δlog-loss bootstrap theo
-  người; AUC theo câu tính trên từng (câu × fold) để tránh tạo tác gộp dự đoán từ các fold khác nhau.
-  SAGE thay bằng Shapley 2 nhóm {nền, twin} = trung bình "thêm sau" và "thêm trước".
-- **Ollama**: client giữ model nạp sẵn (`keep_alive` 30m); khi runner GPU (Vulkan, MX230) crash vì thiếu bộ nhớ,
-  client tự chuyển sang CPU (`num_gpu = 0`) và ghi `cpu_fallback` vào `config.json`. Lời gọi lỗi không được cache:
-  chạy lại cùng lệnh chỉ gọi lại các ô lỗi.
-- **Chưa làm**: O1–O4, C1, C2, C4, C5, số nhãn tương đương, PPI, ΔAUC theo nhóm con.
+- **Mã nguồn viết hoàn toàn bằng tiếng Anh** (chú thích, docstring, thông báo lỗi), theo quyết định của nhóm.
+  Đặc tả Mục 0 quy định văn bản giải thích viết tiếng Việt; tài liệu (README, CHANGELOG) vẫn viết tiếng Việt.
+- **Bỏ gói `gnwt_tm` cũ** (bản dựng twin trước đề cương) cùng `configs/`, `docs/twin_design.md`,
+  `data/data_sample.json`, `data/schema/` và kiểm thử của nó; toàn bộ mã được viết mới trong `src/gnwt`.
+- **Python 3.12** thay 3.11 (môi trường sẵn có; không dùng tính năng riêng của 3.12 trong `src/gnwt`).
+- **Khoá thêm trong `params.yaml`**: `llm.timeout_s` (đặc tả ghi cứng 60 s; để 180 s cho máy local) và
+  `llm.ollama` (`base_url`, `keep_alive`, `num_ctx`). Hai khoá này nằm trong `config_hash`.
+- **`llm.ollama.num_gpu: 0`** (chạy thuần CPU): driver GPU 2 GB bị sập khi tải mô hình ("GPU is lost").
+  Sau khi khởi động lại máy có thể đặt `null` để Ollama tự đẩy một phần mô hình lên GPU.
+- **`concurrency: 1`** khi dùng Ollama: máy chủ local xử lý tuần tự, gửi song song chỉ làm các yêu cầu
+  xếp hàng phía máy chủ và quá hạn. Bốn mô-đun vẫn chạy song song ở tầng đồ thị (B2).
+- **Dòng `api_calls` trúng cache ghi token 0** (cùng chi phí 0), để tổng token theo `api_calls` bằng
+  đúng số token thật đã tiêu.
+- **`CallMeta` là tổng của một lời gọi logic**: token, chi phí, độ trễ cộng qua mọi lần thử (kể cả lần
+  gọi sửa); `attempt` = số lần đã gửi; `call_id` = dòng `api_calls` cuối cùng. Mỗi lần thử vẫn có
+  dòng `api_calls` riêng như đặc tả.
+- **Độ trễ `latency_ms`** chỉ tính thời gian gọi API, không tính thời gian chờ phép của bộ giới hạn.
+- **Khoá cache** mã hoá bảy thành phần của Mục 4 bằng một mảng JSON thay cho nối chuỗi bằng `|`, để
+  ranh giới giữa các thành phần không nhập nhằng. `schema_version` = thuộc tính lớp `SCHEMA_VERSION`
+  của lược đồ đầu ra (mặc định "1").
+- **Seed của Ollama** suy ra từ khoá cache và `global_seed`, nên cùng prompt cho cùng đầu ra kể cả
+  khi xoá cache.
+- **`MockLLMClient`** là `LLMClient` với `FixtureProvider`, nên kiểm thử tích hợp đi qua đúng đường
+  cache, kiểm tra lược đồ, gọi sửa và ghi `api_calls` như client thật.
+- **Purpose `smoke`** (hạn mức token nhóm `module`) chỉ dùng cho `scripts/smoke_llm.py`.
+- **Persona**: `tier1.display_name` (Mục 12.3) và `tier2.look_for` ("what you look for", Mục 12.2)
+  được thêm vào model của Mục 3.1. Mọi khoá bắt đầu bằng `attr` bị từ chối.
+- **Lỗi kết nối tới Ollama** (máy chủ chưa chạy) được coi như lỗi tạm thời và thử lại như 5xx.
+
+### Mâu thuẫn trong đặc tả, cần sửa đặc tả
+
+- Mục 16.4 yêu cầu không tệp nào ngoài `src/gnwt/analysis/` chứa chuỗi `sealed`, nhưng Mục 2 đặt
+  khoá `data.sealed_dir` trong `params.yaml`, nên `src/gnwt/config.py` buộc phải chứa chuỗi này; Mục
+  12.1 cũng cần `data/speed_dating.py` ghi tệp nhãn niêm phong. Đề xuất: phép quét tĩnh kiểm tra việc
+  **đọc** thư mục nhãn, miễn trừ `config.py` (khai báo) và hàm niêm phong trong `data/speed_dating.py` (chỉ ghi).

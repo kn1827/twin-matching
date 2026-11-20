@@ -1,0 +1,62 @@
+# Basic-context catalog v1 (tech spec 3.4 and 10.4), English only.
+# A lookup table describing each basic context on the 12 demand styles. It holds NO trait-outcome
+# effect size. Each profile (D^def: mean, se, icc2k on the O*NET work-importance scale -3..+3) is
+# WRITTEN BY THE OFFLINE STEP O2 (stage1/offline/reader.py: estimate_catalog) from >= 3 trained raters
+# answering "in this context, does a person high on [style] help or hinder the activity and the
+# relationship, -3..+3?". Profiles are null until those ratings exist; a null profile is read as the
+# neutral demand 0 and the match is flagged "unrated".
+# sign_check: expected signs from meta-analyses, used ONLY by test P4 (never as values).
+version: 1.0.0
+rating_protocol: onet_wi_question_v1
+contexts:
+  - id: speed_dating
+    aliases: {en: [speed dating, speed date, speed dates, dating event, dating, find a partner,
+                   find a date, romantic partner]}
+    goal_codes: [fun_night, meet_new, get_date, serious, say_did, other]   # Columbia `goal` 1..6
+    profile: null
+    n_raters: null
+    sign_check: {}
+  - id: study_group
+    aliases: {en: [study group, group study, study together, exam prep, exam preparation, revise for the exam,
+                   homework group, group homework, study session, study buddy]}
+    goal_codes: [pass_exam, understand_deeply, homework]
+    profile: null
+    n_raters: null
+    sign_check: {C: "+", A: "+", O: "+"}        # Poropat 2009
+  - id: running
+    aliases: {en: [running, jogging, run club, running club, morning run, long distance running, running buddy]}
+    goal_codes: [beginner, intermediate, advanced]
+    profile: null
+    n_raters: null
+    sign_check: {E: "+", C: "+", ES: "+"}       # Rhodes & Smith 2006
+  - id: project_team
+    aliases: {en: [project team, team project, group project, course project, capstone project, hackathon team]}
+    goal_codes: [top_grade, learn_skills, finish_on_time]
+    profile: null
+    n_raters: null
+    sign_check: {C: "+"}                        # Wilmot & Ones 2021
+  - id: brainstorm
+    aliases: {en: [brainstorming session, ideation session, idea workshop, creative workshop]}
+    goal_codes: [many_ideas, best_idea]
+    profile: null
+    n_raters: null
+    sign_check: {O: "+"}                        # Judge & Zapata 2015 (innovation demand)
+  - id: volunteering
+    aliases: {en: [volunteering, volunteer work, volunteer group, charity event, community service]}
+    goal_codes: [help_others, meet_people, experience]
+    profile: null
+    n_raters: null
+    sign_check: {A: "+"}
+  - id: football
+    aliases: {en: [football, soccer, five a side, pickup soccer, futsal]}
+    goal_codes: [casual_play, competitive_play]
+    profile: null
+    n_raters: null
+    sign_check: {E: "+"}
+  - id: gym
+    aliases: {en: [gym, gym buddy, workout partner, weight training, fitness class]}
+    goal_codes: [beginner, intermediate, advanced]
+    profile: null
+    n_raters: null
+    sign_check: {C: "+"}
+generic_prior: mean_of_catalog

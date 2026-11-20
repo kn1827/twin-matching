@@ -1,0 +1,52 @@
+# Stage 1 parameters (tech spec section 10.6). Procedures, grids, priors and scale definitions only:
+# there is NO coefficient in this file. Every number the model uses is computed by the offline
+# procedures (stage1/offline) and written to hashed artifacts under stage1/artifacts/.
+
+stage1:
+  config_version: "1.0.0"
+  seed: 20261119
+  core:
+    model: srrm_probit
+    multiplicative_rank: 0
+    sampler: {name: gibbs_hoff, chains: 4, iterations: 1500, burn_in: 500, thin: 1, rhat_max: 1.01}
+    crossfit_sampler: {chains: 1, iterations: 800, burn_in: 300}   # one fit per held-out wave (I1)
+  features:
+    actor: [gender, age, self_ratings, bf]
+    partner: [age, self_ratings, bf]          # partner Big Five enters through (11a)
+    dyad: [same_goal, int_corr, jaccard_top5, abs_age_gap, same_field]
+    self_ratings: [sinc3_1, intel3_1, fun3_1, amb3_1]   # no appearance field
+    bf_similarity: false                      # ablation branch only, never used here
+    bf_standardize: z_within_fold
+    bf_reverse: [N]                           # ES = -N
+    trait_block_missing_if_ge: 3              # sensitivity [2, 4]
+    int_corr_min_common_items: 8              # sensitivity [5, 12]
+  personality_fit:
+    demand_scale: onet_wi                     # D~ = D / 3
+    demand_centering: none                    # sensitivity: z_over_catalog
+    slope: shared                             # shared | per_trait
+    single_context_identification: delta_orthogonal_to_demand
+  priors:
+    coef_center: 0
+    scale_grid: [0.05, 0.1, 0.25, 0.5, 1.0]   # prior sd of the marginal-scale coefficients (beta / s)
+    intercept_sd: 5.0
+    variance_sd: {family: half_cauchy, scale: 1.0}
+    covariance: lkj_eta_2                     # sensitivity: inverse_wishart (Hoff)
+  selection: {cv: nested_lowo, criterion: log_loss, tie_rule: one_se_prefer_shrinkage}
+  block_masking_rate_grid: [0.0, 0.15, 0.3, 0.5]
+  update: {method: laplace_batch}
+  evaluation: {bootstrap_B: 2000, sesoi_auc: 0.03, ece_bins: 10, cluster: chooser}
+  context_reader:
+    lexicon: {path: data/lexicon/demand_lexicon_v1.yaml, min_entries_per_style: 5}
+    catalog: {path: data/catalog/basic_contexts_v1.yaml, generic_prior: mean_of_catalog}
+    ngram_max: 4
+    toneless_match: unique_only               # accent-folded match, unique entries only
+    multi_match: longest_then_mean
+    cue_levels: {classes: [neg, rev, weak, base, strong], order: [neg, weak, base, strong],
+                 estimator: monotone_least_squares, per_style: select_by_group_cv_1se}
+    prior_strength: {estimator: buhlmann_nonparametric, per_style: select_by_group_cv_1se,
+                     sensitivity_grid: [0.25, 0.5, 1, 2, 4]}
+    style_icc_min: 0.70
+    cv: group_kfold_by_basic_context
+    no_text_fallback: event_then_market
+    fallback_embedding: {enabled: false, model: intfloat/multilingual-e5-small, threshold: conformal, target_error: 0.10}
+  locked: {srrm: null, reader: null}          # filled by experiments/run_stage1.py --lock

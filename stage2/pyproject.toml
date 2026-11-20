@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "lrmf-twin"
+version = "0.2.0"
+description = "Twin that corrects the residual of a frozen LR + MF base, compared with logistic regression"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "numpy>=1.26",
+  "scipy>=1.11",
+  "pandas>=2.1",
+  "scikit-learn>=1.4",
+  "joblib>=1.3",
+  "torch>=2.3",
+  "sentence-transformers>=3",
+]
+
+[project.optional-dependencies]
+hf = ["transformers>=4.44", "accelerate>=0.33"]          # provider hf: (Kaggle)
+dev = ["pytest>=8"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = "-q"
