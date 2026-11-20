@@ -34,25 +34,9 @@ Kết quả: `/kaggle/working/result/` (mỗi bộ dữ liệu một thư mục,
 `/kaggle/working/result_bundle.zip`. Ước 3–5 giờ với cấu hình mặc định; nên dùng **Save & Run All (Commit)**.
 """),
     code(f"""
-# 1. Lấy mã nguồn. Repo PRIVATE: thêm Kaggle Secret tên GITHUB_TOKEN (Add-ons -> Secrets; token GitHub chỉ cần
-#    quyền đọc repo này) rồi bật secret cho notebook, hoặc chuyển repo sang public.
-#    Không bao giờ hỏi mật khẩu: clone lỗi là dừng ngay thay vì treo đến hết 12 giờ.
-import os, subprocess
-token = ""
-try:
-    from kaggle_secrets import UserSecretsClient
-    token = UserSecretsClient().get_secret("GITHUB_TOKEN")
-except Exception:
-    pass
-url = "{REPO}"
-if token:
-    url = url.replace("https://", "https://x-access-token:" + token + "@")
-subprocess.run(["rm", "-rf", "/kaggle/working/twin-matching"])
-r = subprocess.run(["git", "clone", "--depth", "1", url, "/kaggle/working/twin-matching"],
-                   env=dict(os.environ, GIT_TERMINAL_PROMPT="0"), capture_output=True, text=True, timeout=300)
-print((r.stdout + r.stderr).replace(token, "***") if token else r.stdout + r.stderr)
-if r.returncode != 0:
-    raise SystemExit("Clone that bai: repo private ma chua co secret GITHUB_TOKEN, hoac token sai/het han.")
+# 1. Lấy mã nguồn (repo public; không hỏi mật khẩu nên lỗi mạng là dừng ngay, không treo)
+!rm -rf /kaggle/working/twin-matching
+!GIT_TERMINAL_PROMPT=0 git clone --depth 1 {REPO} /kaggle/working/twin-matching && cd /kaggle/working/twin-matching && git log -1 --oneline
 """),
     code("""
 # 2. Thư viện (Kaggle đã có torch / transformers / sklearn; bổ sung phần thiếu)
@@ -65,8 +49,8 @@ os.environ["LRMF_DATASETS"] = "__DATASETS__"           # mỗi tài khoản Kagg
 os.environ["LRMF_REGIMES"] = "R1,R2,R3,R4,R5,R6"
 os.environ["LRMF_LLM_MODEL"] = "Qwen/Qwen2.5-7B-Instruct"
 os.environ["LRMF_T5"] = "ab"            # a = twin độc lập, b = twin thấy dự đoán của nền
-os.environ["LRMF_LLM_CELLS"] = "200"    # số ô gọi twin mỗi chế độ (tầng 2)
-os.environ["LRMF_N_SPARSE"] = "200"    # số người thưa (R4) / người mới (R5)
+os.environ["LRMF_LLM_CELLS"] = "300"    # số ô gọi twin mỗi chế độ (càng nhiều, CI tầng 2 càng hẹp)
+os.environ["LRMF_N_SPARSE"] = "300"    # số người thưa (R4) / người mới (R5)
 os.environ["LRMF_BOOTSTRAP"] = "500"
 os.environ["LRMF_HF_BATCH_SIZE"] = "8"
 os.environ["LRMF_TIME_BUDGET_H"] = "11"
