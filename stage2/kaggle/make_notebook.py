@@ -1,4 +1,4 @@
-"""Sinh 3 notebook Kaggle (mỗi tài khoản một bộ dữ liệu): git clone repo rồi chạy full.
+"""Sinh notebook Kaggle (một tài khoản, cả ba bộ dữ liệu trong một phiên 12 giờ): git clone repo rồi chạy full.
 
     python kaggle/make_notebook.py
 """
@@ -61,15 +61,15 @@ if r.returncode != 0:
     code("""
 # 3. Cấu hình (notebook __NAME__): sửa ở đây (để trống = giá trị mặc định trong kaggle/run_full.py)
 import os
-os.environ["LRMF_DATASETS"] = "__DATASETS__"           # mỗi tài khoản Kaggle chạy một bộ
+os.environ["LRMF_DATASETS"] = "__DATASETS__"           # cả ba bộ trong một phiên
 os.environ["LRMF_REGIMES"] = "R1,R2,R3,R4,R5,R6"
 os.environ["LRMF_LLM_MODEL"] = "Qwen/Qwen2.5-7B-Instruct"
 os.environ["LRMF_T5"] = "ab"            # a = twin độc lập, b = twin thấy dự đoán của nền
-os.environ["LRMF_LLM_CELLS"] = "150"    # số ô gọi twin mỗi chế độ
-os.environ["LRMF_N_SPARSE"] = "150"     # số người thưa (R4) / người mới (R5)
-os.environ["LRMF_BOOTSTRAP"] = "300"
+os.environ["LRMF_LLM_CELLS"] = "80"     # số ô gọi twin mỗi chế độ (giảm để 3 bộ vừa 12 giờ)
+os.environ["LRMF_N_SPARSE"] = "100"    # số người thưa (R4) / người mới (R5)
+os.environ["LRMF_BOOTSTRAP"] = "200"
 os.environ["LRMF_HF_BATCH_SIZE"] = "8"
-os.environ["LRMF_TIME_BUDGET_H"] = "11"
+os.environ["LRMF_TIME_BUDGET_H"] = "10"
 # os.environ["LRMF_KAGGLE_DRYRUN"] = "1"   # bật để thử nhanh cơ chế (LLM mock, dữ liệu nhỏ, vài phút)
 """),
     code("""
@@ -90,12 +90,13 @@ nb = {"cells": cells, "metadata": {"kernelspec": {"display_name": "Python 3", "l
                                    "kaggle": {"accelerator": "nvidiaTeslaT4", "isInternetEnabled": True}},
       "nbformat": 4, "nbformat_minor": 5}
 
-# Ba tài khoản Kaggle, mỗi tài khoản một notebook một bộ dữ liệu (phiên GPU tối đa 12 giờ)
-SPLITS = {"acc1_twin2k": "twin2k", "acc2_gss": "gss", "acc3_movielens": "movielens"}
+# Một tài khoản Kaggle: một notebook chạy lần lượt cả ba bộ dữ liệu (TIME_BUDGET_H chặn bộ mới khi gần hết giờ)
+SPLITS = {"kaggle": "twin2k,gss,movielens"}
 
 if __name__ == "__main__":
     here = Path(__file__).resolve().parent
-    (here / "twin_lrmf_kaggle.ipynb").unlink(missing_ok=True)
+    for old in here.glob("twin_lrmf_acc*.ipynb"):
+        old.unlink()
     for name, ds in SPLITS.items():
         text = json.dumps(nb, ensure_ascii=False, indent=1).replace("__DATASETS__", ds).replace("__NAME__", name)
         out = here / f"twin_lrmf_{name}.ipynb"
