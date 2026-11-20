@@ -17,6 +17,13 @@ T3 (design V3): `refit_persons` re-estimates (c_p, u_p) of sparse persons with t
 adding LLM pseudo-answers on anchor items as soft labels weighted by w(n_p) = n0 / (n0 + n_p): the person
 factor shrinks toward the LLM prior instead of toward 0, less so as the person's own answers accumulate.
 
+Fixes of version 0.3 (report "phuong an sua", A1):
+* warm start (`init`): B2 starts from the fitted LR (b, W, Theta) and only adds person bias + MF, so it begins
+  exactly where LR stands (FM contains LR as a special case, Rendle 2010; stagewise fitting, Friedman 2001);
+* L-BFGS is run in chunks until the relative change of the objective is < `tol` (not a fixed 300 steps);
+  `n_iter` and `converged` are recorded;
+* all lambdas / the rank come from `tuning.py` (validation log-loss on a regime-mimicking inner split).
+
 Everything is fitted by full-batch L-BFGS on the mean penalised log-loss of the fold's training cells, on the
 GPU when one is available. With `rank=0, person_bias=False` the model is exactly one L2 logistic regression
 per question (the objective is separable by column), which `baselines.torch_lr` uses as the scalable LR.
@@ -49,7 +56,8 @@ class BaseConfig:
     free_mult: float = 3.0          # with T2: the free part of the predicted params gets free_mult x penalty
     lam_mlp: float = 10.0
     sem_hidden: int = 64
-    max_iter: int = 400
+    max_iter: int = 1500            # total L-BFGS budget, run in chunks until converged
+    tol: float = 1e-7               # stop when the relative objective change of a chunk is below tol
     seed: int = 0
     person_bias: bool = True
     max_feat_items: int = 800
@@ -97,7 +105,7 @@ class LRMFBase:
 
     # -- fit --------------------------------------------------------------------------------------------
     def fit(self, Y: np.ndarray, train: np.ndarray, Xd: np.ndarray, A: np.ndarray,
-            E: np.ndarray | None = None) -> "LRMFBase":
+            E: np.ndarray | None = None, init: dict | None = None) -> "LRMFBase":
         cfg = self.cfg
         dev = self.dev = _device(cfg.device)
         gen = torch.Generator(device="cpu").manual_seed(cfg.seed)
@@ -124,6 +132,17 @@ class LRMFBase:
             self.offdiag = torch.ones(len(feat), J, device=dev)
             self.offdiag[torch.arange(len(feat), device=dev), self.feat_idx] = 0.0
             params.append(self.Theta)
+        if init:
+            with torch.no_grad():
+                if "U" not in init:                     # start the MF part near 0: B2 begins at the LR fit
+                    self.U.mul_(0.1)
+                    self.V.mul_(0.1)
+                for name in ("b", "W", "Theta", "c", "U", "V"):
+                    if name in init and hasattr(self, name):
+                        src = _t(init[name], dev)
+                        dst = getattr(self, name)
+                        if src.shape == dst.shape:
+                            dst.copy_(src)
         if cfg.semantic:
             if E is None:
                 raise ValueError("semantic=True needs item embeddings E")
@@ -151,8 +170,9 @@ class LRMFBase:
                 reg = reg + cfg.lam_mlp * sum(p.pow(2).sum() for p in self.mlp.parameters())
             return (loss + 0.5 * reg) / n
 
-        opt = torch.optim.LBFGS(params, lr=1.0, max_iter=cfg.max_iter, history_size=20,
-                                tolerance_grad=1e-7, tolerance_change=1e-10, line_search_fn="strong_wolfe")
+        chunk = 50
+        opt = torch.optim.LBFGS(params, lr=1.0, max_iter=chunk, history_size=20,
+                                tolerance_grad=1e-9, tolerance_change=1e-12, line_search_fn="strong_wolfe")
 
         def closure():
             opt.zero_grad()
@@ -160,7 +180,20 @@ class LRMFBase:
             value.backward()
             return value
 
-        opt.step(closure)
+        with torch.no_grad():
+            prev = float(objective())
+        self.n_iter, self.converged = 0, False
+        while self.n_iter < cfg.max_iter:
+            opt.step(closure)
+            self.n_iter += chunk
+            with torch.no_grad():
+                cur = float(objective())
+            if not np.isfinite(cur):
+                break
+            if abs(prev - cur) <= cfg.tol * max(abs(prev), 1e-12):
+                self.converged = True
+                break
+            prev = cur
         with torch.no_grad():
             self.final_loss = float(objective())
         self.fitted = True
@@ -174,6 +207,18 @@ class LRMFBase:
     @torch.no_grad()
     def item_factors(self) -> np.ndarray:
         return self._item_params()[2].cpu().numpy()
+
+    @torch.no_grad()
+    def components(self) -> dict:
+        """Fitted pieces as numpy: b (J), W, Theta, c (P), U (P, r), V (J, r) and rest = logits - b - c - U V'."""
+        b, W, V = self._item_params()
+        out = {"b": b.cpu().numpy(), "W": W.cpu().numpy(), "V": V.cpu().numpy(), "U": self.U.cpu().numpy(),
+               "c": self.c.cpu().numpy()}
+        if self.cfg.use_theta:
+            out["Theta"] = self.Theta.cpu().numpy()
+        rest = self._lr_part(self.Xd, self.A, torch.zeros_like(b), W)
+        out["rest"] = rest.cpu().numpy()
+        return out
 
     def release(self) -> None:
         """Free the fold's tensors (GPU memory) once its predictions have been read."""
@@ -229,3 +274,42 @@ class LRMFBase:
         opt.step(closure)
         with torch.no_grad():
             return (fixed + c[:, None] + U @ V.T).cpu().numpy()
+
+
+def logits_from(comp: dict, b: np.ndarray | None = None, V: np.ndarray | None = None,
+                c: np.ndarray | None = None, U: np.ndarray | None = None) -> np.ndarray:
+    """Logits of a fitted model with some pieces replaced (T2 item params, T3 person params)."""
+    b = comp["b"] if b is None else b
+    V = comp["V"] if V is None else V
+    c = comp["c"] if c is None else c
+    U = comp["U"] if U is None else U
+    return (comp["rest"] + b[None, :] + c[:, None] + U @ V.T).astype(np.float32)
+
+
+def refit_rows(fixed: np.ndarray, V: np.ndarray, y: np.ndarray, m: np.ndarray, q: np.ndarray, w: np.ndarray,
+               lam_c: float, lam_U: float, c0: np.ndarray, U0: np.ndarray, device: str = "auto") -> tuple:
+    """(c, U) of some persons with item parameters frozen: own answers (mask m) + soft labels q with weights w.
+
+    fixed = logit part that does not depend on the person parameters, rows of the persons (n, J)."""
+    dev = _device(device)
+    F, Vt, yt, mt, qt, wt = (_t(a, dev) for a in (fixed, V, y, m, q, w))
+    c = _t(c0, dev).clone().requires_grad_(True)
+    U = _t(U0, dev).clone().requires_grad_(True)
+    bce = torch.nn.functional.binary_cross_entropy_with_logits
+    norm = max(float(mt.sum() + wt.sum()), 1.0)
+
+    def objective():
+        Z = F + c[:, None] + U @ Vt.T
+        loss = bce(Z, yt, weight=mt, reduction="sum") + bce(Z, qt, weight=wt, reduction="sum")
+        return (loss + 0.5 * (lam_c * c.pow(2).sum() + lam_U * U.pow(2).sum())) / norm
+
+    opt = torch.optim.LBFGS([c, U], lr=1.0, max_iter=200, history_size=10, line_search_fn="strong_wolfe")
+
+    def closure():
+        opt.zero_grad()
+        value = objective()
+        value.backward()
+        return value
+
+    opt.step(closure)
+    return c.detach().cpu().numpy(), U.detach().cpu().numpy()

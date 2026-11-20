@@ -21,6 +21,7 @@ import os
 import shutil
 import subprocess
 import sys
+import re
 import time
 from datetime import datetime
 from pathlib import Path
@@ -28,13 +29,18 @@ from pathlib import Path
 # ============================== CẤU HÌNH ==============================
 DATASETS = ["twin2k", "gss", "movielens"]          # thứ tự chạy
 REGIMES = "R1,R2,R3,R4,R5,R6"                      # R3 tự để trống trên Twin-2K (không có đợt)
-LLM_MODEL = "Qwen/Qwen2.5-7B-Instruct"             # hoặc đường dẫn local; tự dùng Kaggle Model nếu có
-T5_VARIANTS = "ab"                                 # a = twin độc lập, b = twin thấy dự đoán của nền
-LLM_CELLS = 150                                    # số ô gọi twin T5 mỗi chế độ (tầng 2)
-N_SPARSE = 150                                     # số người thưa (R4) / người mới (R5)
-BOOTSTRAP = 300                                    # bootstrap theo người cho CI
+LLM_MODEL = "Qwen/Qwen2.5-14B-Instruct"            # hoặc đường dẫn local; tự dùng Kaggle Model nếu có (4-bit tự bật)
+T5_VARIANTS = "a"                                  # a = twin độc lập (mặc định), b = twin thấy nền (ablation)
+FT = True                                          # twin trung tâm: LLM tinh chỉnh QLoRA (twin_ft.py)
+FT_STEPS = 800                                     # bước tối đa; dừng sớm theo log-loss kiểm định
+FT_TRAIN = 6000                                    # episode huấn luyện mỗi chế độ
+FT_EVAL = 1500                                      # ô đánh giá (fold 0) mỗi chế độ
+FT_BATCH = 4
+LLM_CELLS = 500                                    # số ô gọi twin T5 mỗi chế độ (tầng 2)
+N_SPARSE = 400                                     # số người thưa (R4) / người mới (R5)
+BOOTSTRAP = 1000                                   # bootstrap theo người cho CI
 HF_BATCH = 8                                       # số prompt mỗi lô generate
-TIME_BUDGET_H = 10.5                               # không bắt đầu bộ dữ liệu mới sau mốc này
+TIME_BUDGET_H = 11.3                               # không bắt đầu bộ dữ liệu mới sau mốc này
 EXTRA_ARGS = {                                     # tham số riêng từng bộ dữ liệu
     "twin2k": [],
     "gss": ["--gss-year-min", "2000", "--gss-max-items", "600"],
@@ -52,13 +58,19 @@ LLM_CELLS = int(_env("LRMF_LLM_CELLS", LLM_CELLS))
 N_SPARSE = int(_env("LRMF_N_SPARSE", N_SPARSE))
 BOOTSTRAP = int(_env("LRMF_BOOTSTRAP", BOOTSTRAP))
 HF_BATCH = int(_env("LRMF_HF_BATCH_SIZE", HF_BATCH))
+FT = _env("LRMF_FT", "1" if FT else "0") == "1"
+FT_STEPS = int(_env("LRMF_FT_STEPS", FT_STEPS))
+FT_TRAIN = int(_env("LRMF_FT_TRAIN", FT_TRAIN))
+FT_EVAL = int(_env("LRMF_FT_EVAL", FT_EVAL))
+FT_BATCH = int(_env("LRMF_FT_BATCH", FT_BATCH))
 TIME_BUDGET_H = float(_env("LRMF_TIME_BUDGET_H", TIME_BUDGET_H))
 # =======================================================================
 
 # LRMF_KAGGLE_DRYRUN=1: kiểm tra cơ chế của script (chạy, tổng hợp) với LLM mock và dữ liệu nhỏ
 DRY_RUN = os.environ.get("LRMF_KAGGLE_DRYRUN") == "1"
 DRY_ARGS = ["--max-persons", "200", "--max-items", "80", "--bootstrap", "10", "--max-iter", "30",
-            "--llm-cells", "6", "--n-sparse", "20"]
+            "--llm-cells", "6", "--n-sparse", "20", "--ft-model", "tiny-random", "--ft-steps", "6",
+            "--ft-train", "60", "--ft-val", "20", "--ft-eval", "40"]
 
 WORK = Path("/kaggle/working") if Path("/kaggle/working").exists() else Path.cwd()
 if os.environ.get("LRMF_KAGGLE_WORK"):
@@ -88,7 +100,8 @@ def sh(cmd: list[str], log_path: Path | None = None, env: dict | None = None) ->
 def ensure_packages() -> None:
     need = []
     for mod, pkg in (("sentence_transformers", "sentence-transformers"), ("accelerate", "accelerate"),
-                     ("transformers", "transformers"), ("sklearn", "scikit-learn"), ("scipy", "scipy")):
+                     ("transformers", "transformers"), ("sklearn", "scikit-learn"), ("scipy", "scipy"),
+                     ("peft", "peft"), ("bitsandbytes", "bitsandbytes")):
         try:
             __import__(mod)
         except ImportError:
@@ -115,13 +128,20 @@ def gpu_info() -> tuple[int, float]:
 
 def find_model() -> str:
     """A Kaggle Model input of the same checkpoint if attached, else the Hugging Face id."""
-    want = LLM_MODEL.split("/")[-1].lower()                     # qwen2.5-7b-instruct
-    size = "7b" if "7b" in want else ("3b" if "3b" in want else "")
+    want = LLM_MODEL.split("/")[-1].lower()                     # qwen2.5-14b-instruct
+    m = re.search(r"(\d+(?:\.\d+)?)b", want.replace("2.5", ""))
+    size = f"{m.group(1)}b" if m else ""
     for cfg in glob.glob("/kaggle/input/**/config.json", recursive=True):
         d = os.path.dirname(cfg).lower()
-        if "qwen" in d and size in d and "instruct" in d and os.path.exists(os.path.join(os.path.dirname(cfg), "tokenizer_config.json")):
+        if ("qwen" in d and re.search(rf"(^|[^0-9.]){re.escape(size)}", d) and "instruct" in d
+                and os.path.exists(os.path.join(os.path.dirname(cfg), "tokenizer_config.json"))):
             return os.path.dirname(cfg)
     return LLM_MODEL
+
+
+def model_size_b(name: str) -> float:
+    m = re.search(r"(\d+(?:\.\d+)?)b", name.lower().replace("2.5", "").replace("qwen2", "qwen"))
+    return float(m.group(1)) if m else 0.0
 
 
 def fmt(x, nd=4, sign=False):
@@ -137,14 +157,41 @@ def ci(d, key):
     return f"{fmt(d[key], 4, True)} [{fmt(lo, 3, True)}, {fmt(hi, 3, True)}]"
 
 
-def overall_table(runs: dict[str, Path]) -> None:
-    regimes = [r.strip() for r in REGIMES.split(",")]
+def _central(tc):
+    if not tc:
+        return ["-"] * 5
+    tw = tc.get("T* twin trung tam (LLM tinh chinh)", {})
+    st = tc.get("T* + LR (stack)", {})
+    return [str(tc.get("n", "-")), ci(tw, "d_auc"), ci(tw, "d_logloss"), ci(st, "d_auc"),
+            str(tc.get("shapley", {}).get("share_twin", "-"))]
+
+
+def merge_overviews(paths: list[Path]) -> dict[str, dict]:
+    """dataset -> one overview merged from several runs (notebooks that split the regimes of a dataset)."""
+    merged: dict[str, dict] = {}
+    for f in sorted(paths):
+        ov = json.loads(Path(f).read_text(encoding="utf-8"))
+        cur = merged.setdefault(ov["dataset"], {"dataset": ov["dataset"], "regimes": {}, "lr_test": {},
+                                                "skipped": set(ov.get("skipped", []))})
+        cur["regimes"].update(ov.get("regimes", {}))
+        cur["lr_test"].update(ov.get("lr_test", {}))
+        cur["skipped"] &= set(ov.get("skipped", [])) if cur["regimes"] else set(ov.get("skipped", []))
+        cur["skipped"] |= set(ov.get("skipped", []))
+    for ov in merged.values():
+        ov["skipped"] = sorted(ov["skipped"])
+    return merged
+
+
+def overall_table(runs: dict[str, Path], overviews: dict[str, dict] | None = None,
+                  datasets: list[str] | None = None, regimes_csv: str | None = None) -> None:
+    regimes = [r.strip() for r in (regimes_csv or REGIMES).split(",")]
     header = ["dataset", "regime", "cells", "LR AUC", "dAUC B2 (LR+MF) vs LR", "dAUC B3 (+T2)", "dAUC B4 (+T3)",
-              "LLM cells", "dAUC B9 (twin final)", "dLogloss B9", "twin alone AUC", "LR-test p T5a", "p T5b"]
+              "LLM cells", "dAUC B9 (twin final)", "dLogloss B9", "twin alone AUC", "LR-test p T5a", "p T5b",
+              "T* cells", "dAUC T* (twin trung tam) vs LR", "dLogloss T*", "dAUC T*+LR", "twin share (Shapley)"]
     rows = []
-    for ds in DATASETS:
-        ov = None
-        if ds in runs and (runs[ds] / "overview.json").exists():
+    for ds in (datasets or DATASETS):
+        ov = (overviews or {}).get(ds)
+        if ov is None and ds in runs and (runs[ds] / "overview.json").exists():
             ov = json.loads((runs[ds] / "overview.json").read_text(encoding="utf-8"))
         for rg in regimes:
             if ov is None:
@@ -163,7 +210,8 @@ def overall_table(runs: dict[str, Path]) -> None:
                          ci(l1.get("B2 LR+MF (T1)"), "d_auc"), ci(l1.get("B3 +T2"), "d_auc"), ci(l1.get("B4 +T3"), "d_auc"),
                          str(l2.get("LR", {}).get("n", "-")), ci(l2.get("B9 super learner (+T9)"), "d_auc"),
                          ci(l2.get("B9 super learner (+T9)"), "d_logloss"), fmt(l2.get("T-b (twin alone)", {}).get("auc")),
-                         fmt(lt.get(f"{rg}/T5a", {}).get("p_value")), fmt(lt.get(f"{rg}/T5b", {}).get("p_value"))])
+                         fmt(lt.get(f"{rg}/T5a", {}).get("p_value")), fmt(lt.get(f"{rg}/T5b", {}).get("p_value")),
+                         *_central(r.get("twin_central"))])
     widths = [max(len(str(r[i])) for r in [header] + rows) for i in range(len(header))]
     line = lambda r: "  ".join(str(c).ljust(w) for c, w in zip(r, widths))  # noqa: E731
     text = "\n".join([line(header), "  ".join("-" * w for w in widths)] + [line(r) for r in rows])
@@ -190,11 +238,14 @@ def main() -> None:
     model = find_model()
     env = dict(os.environ, LRMF_HF_BATCH=str(HF_BATCH), TOKENIZERS_PARALLELISM="false",
                PYTHONUNBUFFERED="1")
-    if n_gpu and vram < 24 and "7b" in model.lower():
-        # one 16 GB GPU cannot hold a 7B model in fp16 next to the fits: load it in 4-bit
+    size = model_size_b(model)
+    if n_gpu and (size >= 13 or (vram < 24 and size >= 7)):
+        # fp16 weights of a 14B model (~29 GB) do not fit 2 x T4 next to the fits: generate in 4-bit NF4
         subprocess.run([sys.executable, "-m", "pip", "install", "-q", "bitsandbytes"], check=False)
         env["LRMF_HF_QUANT"] = "4bit"
-        print("VRAM < 24 GB: 7B model loaded in 4-bit (LRMF_HF_QUANT=4bit)", flush=True)
+        print(f"{size:g}B model, {vram:.0f} GB VRAM: generation in 4-bit (LRMF_HF_QUANT=4bit)", flush=True)
+    # hard stop a bit before Kaggle's 12 h limit: the compare script skips regimes / fine-tunes past it
+    env["LRMF_DEADLINE"] = str(t0 + TIME_BUDGET_H * 3600)
     if not n_gpu:
         print("CANH BAO: khong co GPU - chay full se rat cham. Bat Accelerator GPU T4 x2.", flush=True)
     print(f"LLM: hf:{model}", flush=True)
@@ -208,6 +259,8 @@ def main() -> None:
         cmd = [sys.executable, "experiments/compare_twin_vs_lr.py", "--dataset", ds, "--regimes", REGIMES,
                "--llm", "mock" if DRY_RUN else f"hf:{model}", "--llm-cells", str(LLM_CELLS), "--t5", T5_VARIANTS,
                "--n-sparse", str(N_SPARSE), "--bootstrap", str(BOOTSTRAP), "--out", str(RESULT), "--tag", "kaggle",
+               *(["--ft", "--ft-model", model, "--ft-steps", str(FT_STEPS), "--ft-train", str(FT_TRAIN),
+                  "--ft-eval", str(FT_EVAL), "--ft-batch", str(FT_BATCH)] if FT else []),
                *EXTRA_ARGS.get(ds, []), *(DRY_ARGS if DRY_RUN else [])]
         print(f"\n######## {ds} ########  (da chay {(time.time() - t0) / 60:.0f} phut)", flush=True)
         code = sh(cmd, RESULT / f"log_{ds}.txt", env)
@@ -222,4 +275,14 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    if len(sys.argv) > 2 and sys.argv[1] == "--merge":
+        # python kaggle/run_full.py --merge <thu muc ket qua tai ve 1> <thu muc 2> ...  (gop cac notebook)
+        files = [f for d in sys.argv[2:] for f in Path(d).rglob("overview.json")]
+        ovs = merge_overviews(files)
+        RESULT = Path(sys.argv[2]).parent / "merged"
+        RESULT.mkdir(parents=True, exist_ok=True)
+        print(f"{len(files)} overview.json -> {sorted(ovs)}")
+        overall_table({}, ovs, datasets=[d for d in ("twin2k", "gss", "movielens") if d in ovs],
+                      regimes_csv="R1,R2,R3,R4,R5,R6")
+    else:
+        main()

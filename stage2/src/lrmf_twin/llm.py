@@ -263,6 +263,19 @@ class LLMClient:
     def cached(self, prompt: str) -> bool:
         return self.db.execute("SELECT 1 FROM cache WHERE key = ?", (self._key(prompt),)).fetchone() is not None
 
+    def unload(self) -> None:
+        """Free an in-process (hf:) model, e.g. before fine-tuning the central twin on the same GPU."""
+        if self._hf is not None:
+            self._hf = None
+            import gc
+            gc.collect()
+            try:
+                import torch
+                if torch.cuda.is_available():
+                    torch.cuda.empty_cache()
+            except ImportError:
+                pass
+
 
 def parse_list(text: str | None, n: int) -> list[float] | None:
     """Parse {"p": [...]} into n probabilities clipped to [0, 1], without renormalising (T3)."""

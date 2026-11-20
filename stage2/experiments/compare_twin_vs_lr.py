@@ -14,7 +14,7 @@ level2_cells.csv (ô có gọi LLM, kèm D), prompts.jsonl, config.json; --save-
 từng ô của mọi mô hình.
 
 Hai tầng so sánh, mỗi chế độ một bảng:
-* Tầng 1 - mọi ô trong phạm vi chế độ: LR-demo, LR (baseline chính: nhân khẩu + câu trả lời khác của người
+* Tầng 1 - mọi ô trong phạm vi chế độ: LR (baseline duy nhất: nhân khẩu + câu trả lời khác của người
   đó), B0, B2 = T1 (LR + MF), B3 = +T2, B4 = +T3 (chỉ R4, cần LLM).
 * Tầng 2 - mẫu ô có gọi LLM (--llm-cells mỗi chế độ): thêm T-b (twin đứng riêng), B5 (D thô, stacking không
   cổng), B6 (+D~), B7 (+cổng), B8 (T5b), B9 (super learner + T9).
@@ -28,6 +28,7 @@ import argparse
 import csv
 import gzip
 import json
+import os
 import platform
 import sys
 import time
@@ -47,11 +48,14 @@ from lrmf_twin.pipeline import LEVEL1_MODELS, RunConfig, run_level2, run_regime 
 from lrmf_twin.regimes import REGIMES, supported  # noqa: E402
 from lrmf_twin.t1_base import BaseConfig  # noqa: E402
 from lrmf_twin.t2_encoder import DEFAULT_EMBEDDER, embed_items  # noqa: E402
+from lrmf_twin.combine import fit_super_learner, group_folds  # noqa: E402
 
 REF = "LR"
-LEVEL2_MODELS = ("LR", "LR-demo", "B0 item mean", "B2", "B4", "T-b (twin alone)", "B5", "B6", "B7", "B8",
+LEVEL2_MODELS = ("LR", "B0 item mean", "B2", "B3", "B4", "T-b (twin alone)", "B5", "B6", "B7", "B8",
                  "B9 super learner (+T9)")
-LEVEL2_LABEL = {"B2": "B2 LR+MF (T1)", "B4": "B4 +T3 (=B3 ngoai R4/R5)", "B5": "B5 +D tho, khong cong",
+LEVEL3_MODELS = ("LR", "B0 item mean", "B2 LR+MF (T1)", "B3 +T2", "B4 +T3", "T* twin trung tam (LLM tinh chinh)",
+                 "T* + LR (stack)")
+LEVEL2_LABEL = {"B2": "B2 LR+MF (T1)", "B3": "B3 +T2", "B4": "B4 +T3 (=B3 ngoai R4/R5)", "B5": "B5 +D tho, khong cong",
                 "B6": "B6 +D~ (T6)", "B7": "B7 +cong w(z) (T7)", "B8": "B8 T5b (twin thay nen)"}
 
 
@@ -61,7 +65,16 @@ def parse_args() -> argparse.Namespace:
     ap.add_argument("--regimes", default="R1,R2,R3,R4,R5,R6", help="danh sách chế độ trong R1..R6")
     ap.add_argument("--llm", default=DEFAULT_LLM, help="ollama:<model> | openai:<model> | mock | none")
     ap.add_argument("--llm-cells", type=int, default=30, help="số ô gọi twin T5 mỗi chế độ")
-    ap.add_argument("--t5", default="ab", help="biến thể T5: a (độc lập), b (thấy nền), ab")
+    ap.add_argument("--t5", default="a", help="biến thể T5: a (độc lập, mặc định), b (thấy nền: ablation), ab")
+    ap.add_argument("--no-tune", action="store_true", help="tắt việc học siêu tham số (dùng giá trị mặc định)")
+    ap.add_argument("--ft", action="store_true", help="bật twin trung tâm: LLM tinh chỉnh QLoRA (twin_ft.py)")
+    ap.add_argument("--ft-model", default="Qwen/Qwen2.5-7B-Instruct", help="model HF / đường dẫn, hoặc tiny-random")
+    ap.add_argument("--ft-steps", type=int, default=400, help="số bước tối đa (dừng sớm theo log-loss kiểm định)")
+    ap.add_argument("--ft-train", type=int, default=4000, help="số episode huấn luyện mỗi chế độ")
+    ap.add_argument("--ft-val", type=int, default=500)
+    ap.add_argument("--ft-eval", type=int, default=800, help="số ô đánh giá (fold 0) mỗi chế độ")
+    ap.add_argument("--ft-batch", type=int, default=8)
+    ap.add_argument("--ft-max-len", type=int, default=384)
     ap.add_argument("--embedder", default=DEFAULT_EMBEDDER, help="st:<model> | ollama:<model> | hash")
     ap.add_argument("--shuffle-texts", action="store_true", help="ablation C3: xáo văn bản câu hỏi trước khi embed")
     ap.add_argument("--folds", type=int, default=5)
@@ -78,7 +91,7 @@ def parse_args() -> argparse.Namespace:
     ap.add_argument("--ml-min-ratings", type=int, default=20)
     ap.add_argument("--max-items", type=int, default=0, help="giới hạn số câu (0 = tất cả), giữ câu nhiều trả lời nhất")
     ap.add_argument("--rank", type=int, default=16, help="hạng MF của T1")
-    ap.add_argument("--max-iter", type=int, default=300, help="số vòng L-BFGS của T1")
+    ap.add_argument("--max-iter", type=int, default=1500, help="ngân sách vòng L-BFGS (dừng khi hội tụ)")
     ap.add_argument("--max-persons", type=int, default=0, help="lấy mẫu ngẫu nhiên số người (0 = tất cả)")
     ap.add_argument("--bootstrap", type=int, default=300, help="số lần bootstrap theo người")
     ap.add_argument("--jobs", type=int, default=4)
@@ -94,6 +107,8 @@ def parse_args() -> argparse.Namespace:
         args.n_sparse = min(args.n_sparse, 20)
         args.llm_cells = min(args.llm_cells, 8)
         args.t5 = "a"
+        args.ft_train, args.ft_val, args.ft_eval, args.ft_steps = (min(args.ft_train, 300), min(args.ft_val, 60),
+                                                                   min(args.ft_eval, 120), min(args.ft_steps, 40))
         args.bootstrap = min(args.bootstrap, 100)
         args.max_iter = min(args.max_iter, 200)
     return args
@@ -169,7 +184,6 @@ def evaluate_level2(l2: dict, rows: list[dict], regime: str | None, B: int, seed
     y = np.array([rows[i]["y"] for i in idx])
     persons = np.array([rows[i]["pid"] for i in idx])
     preds = {"LR": np.array([rows[i]["p_LR"] for i in idx]),
-             "LR-demo": np.array([rows[i]["p_LR-demo"] for i in idx]),
              "B0 item mean": np.array([rows[i]["p_B0 item mean"] for i in idx])}
     for k, v in l2["pred"].items():
         preds[k] = v[idx]
@@ -185,7 +199,7 @@ def evaluate_level2(l2: dict, rows: list[dict], regime: str | None, B: int, seed
 
 def twin_tests(l2: dict, rows: list[dict], variants: list[str], regimes: list[str]) -> dict:
     cells = l2["cells"]
-    y, eta = cells["y"], cells["eta_B4"]
+    y, eta = cells["y"], np.log(l2["pred"]["_offset (best base)"] / (1 - l2["pred"]["_offset (best base)"]))
     reg = np.array([r["regime"] for r in rows])
     out = {"lr_test": {}, "attribution": {}, "diagnostics": {}}
     tests = []
@@ -208,7 +222,7 @@ def twin_tests(l2: dict, rows: list[dict], variants: list[str], regimes: list[st
                 "corr_Dt_resid": corr_ci(Dt[ok], resid[ok]), "corr_D_eta": corr_ci(D[ok], eta[mask][ok])}
         if "a" in variants:
             ll = lambda p: float(logloss_cells(y[mask], p[mask]).mean())  # noqa: E731
-            p_b4 = l2["pred"]["B4"]
+            p_b4 = l2["pred"]["_offset (best base)"]
             p_b0 = cells["p_B0"]
             after = ll(p_b4) - ll(l2["pred"]["B6"])
             first = ll(p_b0) - ll(l2["pred"]["_B0+twin"])
@@ -223,6 +237,45 @@ def twin_tests(l2: dict, rows: list[dict], variants: list[str], regimes: list[st
         running = max(running, min(1.0, (m - rank) * p))
         out["lr_test"][name]["p_holm"] = running
     return out
+
+
+def evaluate_twin_central(ft: dict, B: int, seed: int, n_splits: int) -> tuple[dict, dict]:
+    """Twin-central table on the fold-0 evaluation cells: twin vs LR, stack {LR, twin}, LR test, Shapley."""
+    rows = ft["rows"]
+    y = np.array([r["y"] for r in rows])
+    persons = np.array([r["pid"] for r in rows])
+    z_twin = np.array([r["z_twin"] for r in rows])
+    preds = {m: np.array([r[f"p_{m}"] for r in rows]) for m in ("LR", "B0 item mean", "B2 LR+MF (T1)", "B3 +T2", "B4 +T3")
+             if f"p_{m}" in rows[0]}
+    preds["T* twin trung tam (LLM tinh chinh)"] = 1 / (1 + np.exp(-z_twin))
+    folds = group_folds(persons, n_splits)
+    stack = np.zeros_like(y)
+    alphas = []
+    Pm = np.column_stack([preds["LR"], preds["T* twin trung tam (LLM tinh chinh)"]])
+    for tr, te in folds:
+        a = fit_super_learner(Pm[tr], y[tr])
+        alphas.append(a[1])
+        stack[te] = Pm[te] @ a
+    preds["T* + LR (stack)"] = stack
+    out = {}
+    for m in LEVEL3_MODELS:
+        if m not in preds:
+            continue
+        out[m] = {"summary": summary(y, preds[m])}
+        if m != REF:
+            out[m]["vs_ref"] = paired_bootstrap(y, preds[m], preds[REF], persons, None, B=B, seed=seed)
+    ll = lambda p: float(logloss_cells(y, p).mean())  # noqa: E731
+    lg = lambda p: np.log(np.clip(p, 1e-6, 1 - 1e-6) / (1 - np.clip(p, 1e-6, 1 - 1e-6)))  # noqa: E731
+    v0, v_lr, v_tw, v_all = (ll(preds["B0 item mean"]), ll(preds["LR"]), ll(preds["T* twin trung tam (LLM tinh chinh)"]),
+                             ll(stack))
+    sh_tw = 0.5 * ((v0 - v_tw) + (v_lr - v_all))
+    sh_lr = 0.5 * ((v0 - v_lr) + (v_tw - v_all))
+    total = v0 - v_all
+    share = f"{100 * sh_tw / total:.0f}%" if total > 1e-3 else "khong xac dinh (stack khong hon B0 ro rang)"
+    extra = {"lr_test": lr_test(y, lg(preds["LR"]), z_twin - z_twin.mean()),
+             "shapley": {"twin": sh_tw, "lr": sh_lr, "total_vs_B0": total, "share_twin": share},
+             "alpha_twin": float(np.mean(alphas))}
+    return out, extra
 
 
 # -- main ----------------------------------------------------------------------------------------------------
@@ -274,7 +327,7 @@ def main() -> None:
             sys.exit(f"LOI LLM: {exc}")
     cfg = RunConfig(regimes=tuple(regimes), n_folds=args.folds, seed=args.seed, n_sparse=args.n_sparse,
                     n_known=args.n_known, k_cold=args.k_cold, llm_cells=args.llm_cells, t5_variants=args.t5,
-                    n_jobs=args.jobs, lr_engine=args.lr_engine,
+                    n_jobs=args.jobs, lr_engine=args.lr_engine, tune=not args.no_tune,
                     base=BaseConfig(rank=args.rank, max_iter=args.max_iter, lam_W=100.0, lam_theta=200.0,
                                     device=args.device, max_feat_items=args.max_feat_items))
     n_t3 = args.n_sparse * sum(r in regimes for r in ("R4", "R5")) if llm.enabled else 0
@@ -284,14 +337,36 @@ def main() -> None:
 
     log("[3/4] Chay tung che do (moi o duoc du doan ngoai fold) ...")
     results, all_rows, prompts = {}, [], []
+    deadline = float(os.environ.get("LRMF_DEADLINE", "inf"))
     for rg in regimes:
+        if time.time() > deadline:
+            log(f"  == {rg}: BO QUA (het han gio LRMF_DEADLINE) ==")
+            continue
         log(f"  == {rg}: {REGIMES[rg]} ==")
         res = run_regime(data, E, rg, cfg, llm, log=log)
         results[rg] = res
         all_rows += res["level2_rows"]
         prompts += res["prompts"]
+    regimes = [r for r in regimes if r in results]       # regimes cut by the deadline are reported as missing
     variants = [v for v in args.t5 if v in "ab"] if llm.enabled else []
     l2 = run_level2(all_rows, variants, n_splits=args.folds)
+
+    ft_results = {}
+    if args.ft:
+        from lrmf_twin.twin_ft import FTConfig, run_twin_ft
+        llm.unload()                                   # free the generation model before fine-tuning
+        ftc = FTConfig(model=args.ft_model, max_steps=args.ft_steps, n_train=args.ft_train, n_val=args.ft_val,
+                       n_eval=args.ft_eval, batch_size=args.ft_batch, max_len=args.ft_max_len, seed=args.seed)
+        log(f"[3b] Twin trung tam: {args.ft_model} tinh chinh (QLoRA) cho tung che do ...")
+        for rg in regimes:
+            ctx = results.get(rg, {}).get("ft_context")
+            if ctx is None:
+                continue
+            if time.time() > deadline - 1800:          # a fine-tune needs ~30+ min: do not start one past this
+                log(f"    twin-FT {rg}: bo qua (gan het han gio)")
+                continue
+            ft_results[rg] = run_twin_ft(data, E, rg, ctx, results[rg]["selection"]["tuning"], cfg.base, ftc,
+                                         args.n_sparse, args.n_known, args.k_cold, args.seed, log)
 
     log("[4/4] Danh gia (bootstrap theo nguoi) ...")
     report, md_parts, metric_records = {}, [], []
@@ -312,7 +387,19 @@ def main() -> None:
         title = f"{rg} - {REGIMES[rg]}: tang 1, moi o trong pham vi ({int(res['scope'].sum())} o)"
         print("\n" + title + "\n" + plain)
         md_parts.append(f"## {title}\n\n{md}\n")
-        report[rg] = {"level1": ev1, "folds": res["folds"], "t3": res["t3"], "seconds": res["seconds"]}
+        report[rg] = {"level1": ev1, "folds": res["folds"], "t3": res["t3"], "seconds": res["seconds"],
+                      "selection": res["selection"]}
+        sel = res["selection"]
+        tun = sel["tuning"]
+        sel_line = (f"Hoc tren metric ({rg}): LR C={tun['lr_C']}"
+                    + (f", MF lambda={tun['mf']['lam']} rank={tun['mf']['rank']}" if tun.get("mf") else ", MF bi loai (B2 = LR)")
+                    + f"; kappa (T2) theo fold {sel['kappa_by_fold']}"
+                    + (f"; omega (T3) theo fold {sel['omega_by_fold']}" if sel["omega_by_fold"] else ""))
+        print(sel_line)
+        md_parts.append(sel_line + "\n")
+        overview["regimes"][rg]["selection"] = {"lr_C": tun["lr_C"], "mf": tun.get("mf"),
+                                                "kappa_by_fold": sel["kappa_by_fold"],
+                                                "omega_by_fold": sel["omega_by_fold"]}
         for m, e in ev1.items():
             metric_records.append({"regime": rg, "level": 1, "model": m, **e["summary"],
                                    **{k: v for k, v in (e.get("vs_ref") or {}).items() if not k.endswith("_ci")}})
@@ -333,6 +420,27 @@ def main() -> None:
                 for m, e in ev2.items():
                     metric_records.append({"regime": rg, "level": 2, "model": m, **e["summary"],
                                            **{k: v for k, v in (e.get("vs_ref") or {}).items() if not k.endswith("_ci")}})
+
+    for rg, ft in ft_results.items():
+        ev3, extra = evaluate_twin_central(ft, args.bootstrap, args.seed, args.folds)
+        rows, header = metric_rows(ev3, list(LEVEL3_MODELS), with_item=False)
+        plain, md = table(rows, header)
+        title = (f"{rg}: tang 3, TWIN TRUNG TAM (LLM tinh chinh, {len(ft['rows'])} o fold 0; "
+                 f"dung o buoc {ft['fit']['best_step']}, log-loss kiem dinh {ft['fit']['best_val_logloss']:.4f})")
+        lt, sh = extra["lr_test"], extra["shapley"]
+        note = (f"LR test cua twin tren offset LR: beta={lt['beta']:+.3f}, chi2={lt['chi2']:.2f}, p={lt['p_value']:.4g}. "
+                f"Dong gop cua twin (Shapley 2 nhom {{LR, twin}}, giam log-loss so voi B0): twin {sh['twin']:+.4f}, "
+                f"LR {sh['lr']:+.4f} -> twin chiem {sh['share_twin']}. Trong so stack: twin {extra['alpha_twin']:.2f}.")
+        print("\n" + title + "\n" + plain + "\n" + note)
+        md_parts.append(f"## {title}\n\n{md}\n\n{note}\n")
+        report.setdefault(rg, {})["twin_central"] = {"metrics": ev3, **extra, "fit": ft["fit"]}
+        overview["regimes"].setdefault(rg, {})["twin_central"] = {
+            "n": len(ft["rows"]), **{m: {**{k: e["summary"].get(k) for k in ("auc", "logloss")},
+                                         **{k: v for k, v in (e.get("vs_ref") or {}).items()}} for m, e in ev3.items()},
+            "lr_test": lt, "shapley": sh, "alpha_twin": extra["alpha_twin"]}
+        for m, e in ev3.items():
+            metric_records.append({"regime": rg, "level": 3, "model": m, **e["summary"],
+                                   **{k: v for k, v in (e.get("vs_ref") or {}).items() if not k.endswith("_ci")}})
 
     if l2 is not None:
         tests = twin_tests(l2, all_rows, variants, regimes)

@@ -3,6 +3,32 @@
 Ghi mọi chỗ bản hiện thực lệch khỏi thiết kế "Twin sửa phần dư của nền LR + MF", kèm lý do. Nhãn **[đề xuất]**,
 **[quy ước]** dùng như trong đặc tả.
 
+## lrmf_twin 0.3.0 — sửa nền, mọi hệ số học trên metric, twin trung tâm (21/11/2026)
+
+Theo phân tích lượt Kaggle 20/11 (nền B2 thua LR trên GSS, T2 mất hiệu chuẩn, T3 hại người mới, twin thừa hưởng
+offset hỏng) và báo cáo "phương án sửa":
+
+- **Bỏ baseline LR-demo**: chỉ so với LR.
+- **A1 – nền**: B2 khởi tạo ấm từ LR đã khớp (FM chứa LR; Rendle 2010), L-BFGS chạy tới khi hội tụ (ghi `n_iter`,
+  `converged`). λ của LR (C), của LR văn bản, của MF (λ, hạng) **học trên log-loss kiểm định** của một tách trong
+  mô phỏng đúng chế độ, lấy từ ô huấn luyện của fold 0 (`tuning.py`; CV lồng kiểu Varma & Simon 2006). Baseline LR
+  được chỉnh cùng cách. Nếu MF không thắng LR trên kiểm định thì bị loại: B2 = LR.
+- **A2 – T2**: bỏ đầu MLP học chung (nguồn mất hiệu chuẩn). Thay bằng bộ sinh tham số câu từ văn bản (kernel ridge
+  RBF, α/γ chọn bằng CV theo câu; tinh thần Meta-Embedding, Pan et al. SIGIR 2019) + co Bühlmann
+  ρ_j = n_j/(n_j+κ); κ ∈ {1,3,10,30,100} chọn bằng cross-fit giữa các fold. Câu ấm (ρ≈1) giữ nguyên B2.
+- **A3 – T3**: trọng số tiền nghiệm LLM = ω·n0/(n0+n_p), ω ∈ {0, 0,1, 0,3, 1} chọn bằng cross-fit; ω = 0 (bỏ tiền
+  nghiệm) luôn là một lựa chọn (power tuning của PPI++).
+- **Hiệu chuẩn**: Platt theo nhóm dữ liệu (câu mới / câu lạnh / người thưa / ấm), cross-fit, cho B2–B4.
+- **A4–A5 – tầng 2**: offset của twin là nền tốt nhất trên phần huấn luyện của mỗi fold trong {LR, B2, B3, B4};
+  LR là ứng viên của super learner.
+- **A6**: T5 mặc định chỉ T5a (twin không thấy dự đoán của nền); T5b còn là ablation (`--t5 ab`).
+- **B – twin trung tâm** (`twin_ft.py`, `--ft`): LLM (mặc định Qwen2.5-7B-Instruct) tinh chỉnh QLoRA, đầu phân
+  loại log-loss, hai token mềm u_p, v_j từ MF (CoLLM; Kim & Lee). Twin được huấn luyện trên episode mô phỏng chế độ
+  (DropoutNet): ô bị giữ lại của tách trong chế độ đó, ngữ cảnh lấy từ phần huấn luyện trong. Dừng sớm và hiệu
+  chuẩn theo log-loss kiểm định (10% người). Đánh giá trên ô fold-0 test: bảng "tầng 3" so với LR, stack
+  {LR, twin}, LR test của twin, phần đóng góp Shapley của twin.
+- Hạng LoRA, tốc độ học là giá trị mặc định của thực hành QLoRA, chưa tìm lưới (tốn GPU) [hạn chế].
+
 ## Moved to stage2/ (19/11/2026)
 
 - The whole twin (`src/lrmf_twin`, `experiments/`, `kaggle/`, `reports/`, `tests/unit/`) and its data,

@@ -66,3 +66,46 @@ def embed_items(texts: list[str], spec: str = DEFAULT_EMBEDDER, cache_dir: Path 
     E = np.asarray(E, dtype=np.float32)
     np.save(path, E)
     return E
+
+
+# -- T2 v0.3: item-parameter generator + Buhlmann shrinkage (report "phuong an sua", A2) --------------------
+class ItemGenerator:
+    """Predicts an item's fitted parameters (b_j, v_j) from its text embedding.
+
+    Non-linear adapter (RBF kernel ridge; KAR uses MLP adapters) trained only on items with enough answers,
+    weighted by n_j / (n_j + 10); alpha and gamma are chosen by 5-fold cross-validation over ITEMS (the honest
+    question "how well does text predict the parameters of an item it has not seen"). Same idea as the
+    Meta-Embedding generator of Pan et al. (SIGIR 2019): learn to produce a new item's embedding from content.
+    """
+
+    def __init__(self, min_answers: int = 20, seed: int = 0):
+        self.min_answers = min_answers
+        self.seed = seed
+        self.model = None
+        self.mean = None
+
+    def fit(self, E: np.ndarray, targets: np.ndarray, n_j: np.ndarray) -> "ItemGenerator":
+        from sklearn.kernel_ridge import KernelRidge
+        from sklearn.model_selection import GridSearchCV, KFold
+        ok = n_j >= self.min_answers
+        w = n_j[ok] / (n_j[ok] + 10.0)
+        self.mean = np.average(targets[ok], axis=0, weights=w) if ok.any() else targets.mean(0)
+        if ok.sum() < 10:
+            return self
+        grid = GridSearchCV(KernelRidge(kernel="rbf"), {"alpha": [0.1, 1.0, 10.0], "gamma": [0.5, 1.0, 2.0]},
+                            cv=KFold(5, shuffle=True, random_state=self.seed), scoring="neg_mean_squared_error")
+        grid.fit(E[ok], targets[ok] - self.mean, sample_weight=w)
+        self.model = grid.best_estimator_
+        self.cv_params = grid.best_params_
+        return self
+
+    def predict(self, E: np.ndarray) -> np.ndarray:
+        if self.model is None:
+            return np.broadcast_to(self.mean, (E.shape[0], len(self.mean))).copy()
+        return self.model.predict(E) + self.mean
+
+
+def shrink_item_params(free: np.ndarray, generated: np.ndarray, n_j: np.ndarray, kappa: float) -> np.ndarray:
+    """rho_j * learned + (1 - rho_j) * generated, rho_j = n_j / (n_j + kappa) (credibility / Buhlmann)."""
+    rho = (n_j / (n_j + kappa))[:, None]
+    return rho * free + (1.0 - rho) * generated

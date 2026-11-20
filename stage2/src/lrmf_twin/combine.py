@@ -123,40 +123,74 @@ def predict_platt(w, p):
 
 
 # -- level 2 ------------------------------------------------------------------------------------------------
+OFFSET_CANDIDATES = ("LR", "B2", "B3", "B4")
+
+
 def level2(cells: dict[str, np.ndarray], variants: list[str], n_splits: int = 5,
-           sl_candidates: tuple[str, ...] = ("B2", "B3", "B4", "B7", "B8")) -> dict:
+           sl_candidates: tuple[str, ...] = ("LR", "B2", "B3", "B4", "B7", "B8")) -> dict:
     """Cross-fitted twin combinations on the LLM sample. `cells` holds 1-D arrays:
-    y, person, eta_B2, eta_B3, eta_B4, p_B0, n_p, n_j, new_item and D_a / D_b for the T5 variants run."""
+    y, person, eta_B2, eta_B3, eta_B4, p_LR, p_B0, n_p, n_j, new_item and D_a / D_b for the T5 variants run.
+
+    v0.3 (A4, A5): inside each level-2 fold the offset of the twin is the base with the lowest training
+    log-loss among {LR, B2, B3, B4} (a broken T2/T3 base is no longer inherited), T6 is fitted on that offset,
+    and LR is a candidate of the super learner (the oracle guarantee only covers listed candidates)."""
     y = cells["y"].astype(np.float64)
-    eta = cells["eta_B4"].astype(np.float64)
     folds = group_folds(cells["person"], n_splits)
     Z = gate_features(cells["n_p"], cells["n_j"], cells["new_item"])
-    out: dict[str, np.ndarray] = {"B2": expit(cells["eta_B2"]), "B3": expit(cells["eta_B3"]), "B4": expit(eta)}
+    base = {"LR": _lg(cells["p_LR"]), "B2": cells["eta_B2"].astype(np.float64),
+            "B3": cells["eta_B3"].astype(np.float64), "B4": cells["eta_B4"].astype(np.float64)}
+    out: dict[str, np.ndarray] = {"LR": expit(base["LR"]), "B2": expit(base["B2"]), "B3": expit(base["B3"]),
+                                  "B4": expit(base["B4"])}
+    offset_by_fold = []
+    eta = np.zeros_like(y)
+    for tr, te in folds:
+        best = min(OFFSET_CANDIDATES, key=lambda k: _nll(base[k][tr], y[tr]))
+        offset_by_fold.append(best)
+        eta[te] = base[best][te]
+    out["_offset (best base)"] = expit(eta)
     params: dict[str, list] = {}
     Dt: dict[str, np.ndarray] = {}
+    lg_b0 = _lg(cells["p_B0"])
     for v in variants:
         D = cells[f"D_{v}"].astype(np.float64)
-        Dt[v] = orthogonalise(D, eta, folds)
-        D_fill = np.where(np.isfinite(D), D, eta)
+        ok = np.isfinite(D)
+        Dt[v] = np.zeros_like(y)
         p_raw, p_off, p_gate, p_alone, p_b0tw = (np.zeros_like(y) for _ in range(5))
-        lg_b0 = _lg(cells["p_B0"])
-        for tr, te in folds:
-            w = fit_logistic(np.column_stack([eta[tr], D_fill[tr]]), y[tr])
-            p_raw[te] = predict_logistic(w, np.column_stack([eta[te], D_fill[te]]))
-            b = fit_offset_beta(y[tr], eta[tr], Dt[v][tr])
-            p_off[te] = expit(eta[te] + b * Dt[v][te])
-            g = fit_gated(y[tr], eta[tr], Dt[v][tr], Z[tr])
-            p_gate[te] = predict_gated(g, eta[te], Dt[v][te], Z[te])
+        Dz = np.where(ok, D, 0.0)
+        miss = (~ok).astype(np.float64)
+        for (tr, te), key in zip(folds, offset_by_fold):
+            e = base[key]
+            # T6 on the chosen offset, fitted on the training part of the fold
+            X = np.column_stack([np.ones_like(e), e, e ** 2])
+            tr_ok = tr[ok[tr]]
+            if tr_ok.size >= 4:
+                coef, *_ = np.linalg.lstsq(X[tr_ok], D[tr_ok], rcond=None)
+                Dt[v][te] = np.where(ok[te], D[te] - X[te] @ coef, 0.0)
+                Dt[v][tr] = np.where(ok[tr], D[tr] - X[tr] @ coef, 0.0)
+            dtr, dte = Dt[v][tr].copy(), Dt[v][te].copy()
+            D_fill = np.where(ok, D, e)
+            w = fit_logistic(np.column_stack([e[tr], D_fill[tr]]), y[tr])
+            p_raw[te] = predict_logistic(w, np.column_stack([e[te], D_fill[te]]))
+            b = fit_offset_beta(y[tr], e[tr], dtr)
+            p_off[te] = expit(e[te] + b * dte)
+            g = fit_gated(y[tr], e[tr], dtr, Z[tr])
+            p_gate[te] = predict_gated(g, e[te], dte, Z[te])
             params.setdefault(f"gate_{v}", []).append([float(x) for x in g])
-            # twin alone (T-b): Platt on D, with an indicator for failed calls
-            Dz = np.where(np.isfinite(D), D, 0.0)
-            miss = (~np.isfinite(D)).astype(np.float64)
             wa = fit_logistic(np.column_stack([Dz[tr], miss[tr]]), y[tr])
             p_alone[te] = predict_logistic(wa, np.column_stack([Dz[te], miss[te]]))
-            # twin fitted first (attribution upper bound): offset logit(item mean) + free a + b * D
             q = optimize.minimize(lambda q: _nll(lg_b0[tr] + q[0] + q[1] * Dz[tr] + q[2] * miss[tr], y[tr]),
                                   np.zeros(3), method="L-BFGS-B").x
             p_b0tw[te] = expit(lg_b0[te] + q[0] + q[1] * Dz[te] + q[2] * miss[te])
+        # D~ reported for tests: the held-out part of every fold
+        dt_all = np.zeros_like(y)
+        for (tr, te), key in zip(folds, offset_by_fold):
+            e = base[key]
+            X = np.column_stack([np.ones_like(e), e, e ** 2])
+            tr_ok = tr[ok[tr]]
+            if tr_ok.size >= 4:
+                coef, *_ = np.linalg.lstsq(X[tr_ok], D[tr_ok], rcond=None)
+                dt_all[te] = np.where(ok[te], D[te] - X[te] @ coef, 0.0)
+        Dt[v] = dt_all
         if v == "a":
             out["B5"], out["B6"], out["B7"] = p_raw, p_off, p_gate
             out["T-b (twin alone)"] = p_alone
@@ -178,5 +212,5 @@ def level2(cells: dict[str, np.ndarray], variants: list[str], n_splits: int = 5,
         p_cal[te] = predict_platt(w, P[te] @ a)
     out["B9 super learner (+T9)"] = p_cal
     out["_B9 before T9"] = p_sl
-    return {"pred": out, "Dt": Dt, "folds": folds, "sl_candidates": cands,
-            "sl_alpha_mean": np.mean(alphas, axis=0).tolist(), "params": params}
+    return {"pred": out, "Dt": Dt, "folds": folds, "sl_candidates": cands, "offset_by_fold": offset_by_fold,
+            "eta_offset": eta, "sl_alpha_mean": np.mean(alphas, axis=0).tolist(), "params": params}

@@ -59,6 +59,15 @@ python experiments/compare_twin_vs_lr.py --dataset gss --max-persons 3000 --llm 
 LLM được cache ở `data/cache/lrmf_twin_llm.sqlite`. Trên laptop 8 GB, qwen2.5:3b mất ~15–20 s/lời gọi T5 và
 ~25 s/lời gọi T3 khi có GPU, khoảng gấp đôi khi chỉ chạy CPU (`LRMF_OLLAMA_NUM_GPU=0` ép CPU).
 
+
+### Phiên bản 0.3: twin trung tâm và hệ số học trên metric
+
+- `--ft` bật twin trung tâm (LLM tinh chỉnh QLoRA với token người/câu từ MF, `src/lrmf_twin/twin_ft.py`); kết quả
+  ở bảng "tầng 3" mỗi chế độ: twin so với LR, stack {LR, twin}, LR test, % đóng góp (Shapley).
+- Mọi λ / hạng / C học trên log-loss kiểm định (`tuning.py`); κ của T2, ω của T3, hiệu chuẩn chọn bằng cross-fit.
+  Các giá trị đã chọn in ra màn hình ("Hoc tren metric ...") và ghi trong `tests.json` / `overview.json`.
+- Chạy thử local không cần GPU: `python experiments/compare_twin_vs_lr.py --quick --llm mock --ft --ft-model tiny-random`.
+
 ## Chạy full trên Kaggle
 
 Import [kaggle/twin_lrmf_kaggle.ipynb](kaggle/twin_lrmf_kaggle.ipynb) vào Kaggle (File → Import Notebook), bật

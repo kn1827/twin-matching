@@ -209,3 +209,81 @@ def test_end_to_end_with_mock_llm(tmp_path):
     for name in ("B5", "B6", "B7", "B8", "B9 super learner (+T9)"):
         p = out["pred"][name]
         assert p.shape == (len(rows),) and np.all((p > 0) & (p < 1))
+
+
+# -- v0.3: learned hyper-parameters, cross-fitted weights, central twin ------------------------------------
+def test_b2_warm_start_begins_at_lr_and_does_not_lose():
+    from lrmf_twin.tuning import fit_b2, fit_lr
+    data, _ = synthetic(P=150, J=20, seed=3)
+    f = make_folds(~np.isnan(data.Y), "R1", 4, seed=0)[0]
+    Xd, A = centred_demographics(data.X_demo), answer_features(data, f.train)
+    base = BaseConfig(max_iter=300, device="cpu")
+    lr = fit_lr(data.Y, f.train, Xd, A, 0.05, base)
+    b2 = fit_b2(data.Y, f.train, Xd, A, 0.05, {"lam": 1e6, "rank": 2}, base, lr)   # MF frozen by a huge penalty
+    assert np.max(np.abs(b2.logits() - lr.logits())) < 0.05
+    assert fit_b2(data.Y, f.train, Xd, A, 0.05, None, base, lr) is lr                # MF rejected -> B2 = LR
+
+
+def test_tune_regime_returns_learned_values():
+    from lrmf_twin.tuning import tune_regime
+    data, E = synthetic(P=150, J=20, seed=4)
+    f = make_folds(~np.isnan(data.Y), "R1", 4, seed=0)[0]
+    out = tune_regime(data, E, "R1", f.train, centred_demographics(data.X_demo), BaseConfig(max_iter=100, device="cpu"),
+                      seed=0, n_sparse=20, n_known=4, k_cold=3, log=lambda *_: None)
+    assert out["lr_C"] in (0.002, 0.005, 0.02, 0.05) and len(out["table"]) >= 4
+    assert out["mf"] is None or out["mf_val_logloss"] < out["lr_val_logloss"]
+
+
+def test_crossfit_select_prefers_informative_candidate():
+    from lrmf_twin.pipeline import crossfit_select
+    rng = np.random.default_rng(0)
+    z = rng.normal(size=4000)
+    y = (rng.random(4000) < 1 / (1 + np.exp(-z))).astype(float)
+    fold = np.repeat(np.arange(4), 1000)
+    out, chosen = crossfit_select({"good": z, "noise": rng.normal(size=4000), "zero": np.zeros(4000)}, y, fold, rng)
+    assert set(chosen.values()) == {"good"} and np.allclose(out, z)
+
+
+def test_item_generator_shrinkage():
+    from lrmf_twin.t2_encoder import ItemGenerator, shrink_item_params
+    rng = np.random.default_rng(1)
+    E = rng.normal(size=(60, 5))
+    E /= np.linalg.norm(E, axis=1, keepdims=True)
+    target = np.column_stack([E[:, 0] * 2, E[:, 1]])
+    n_j = np.full(60, 100.0)
+    gen = ItemGenerator(seed=0).fit(E, target, n_j)
+    assert np.corrcoef(gen.predict(E)[:, 0], target[:, 0])[0, 1] > 0.8
+    free = np.zeros_like(target)
+    warm = shrink_item_params(free, target, np.full(60, 1e6), kappa=10.0)
+    cold = shrink_item_params(free, target, np.zeros(60), kappa=10.0)
+    assert np.allclose(warm, free, atol=1e-3) and np.allclose(cold, target)
+
+
+def test_level2_offset_picks_best_base_and_lists_lr():
+    rng = np.random.default_rng(2)
+    n = 400
+    z = rng.normal(size=n)
+    y = (rng.random(n) < 1 / (1 + np.exp(-z))).astype(float)
+    cells = {"y": y, "person": np.arange(n), "p_LR": 1 / (1 + np.exp(-z)), "p_B0": np.full(n, y.mean()),
+             "eta_B2": rng.normal(size=n) * 3, "eta_B3": rng.normal(size=n) * 3, "eta_B4": rng.normal(size=n) * 3,
+             "n_p": np.full(n, 50.0), "n_j": np.full(n, 100.0), "new_item": np.zeros(n), "D_a": rng.normal(size=n)}
+    out = combine.level2(cells, ["a"], n_splits=4)
+    assert set(out["offset_by_fold"]) == {"LR"} and "LR" in out["sl_candidates"]
+
+
+def test_central_twin_tiny_model_runs():
+    pytest.importorskip("peft")
+    from lrmf_twin.twin_ft import FTConfig, run_twin_ft
+    data, E = synthetic(P=60, J=12, seed=5)
+    obs = ~np.isnan(data.Y)
+    f = make_folds(obs, "R1", 4, seed=0)[0]
+    U, V = np.random.default_rng(0).normal(size=(60, 2)), np.random.default_rng(1).normal(size=(12, 2))
+    preds = {m: np.full(data.shape, 0.5, dtype=np.float32) for m in ("LR", "B0 item mean", "B2 LR+MF (T1)")}
+    ctx = {"train": f.train, "test": f.test, "U": U, "V": V, "preds": preds}
+    tuned = {"lr_C": 0.05, "mf": {"lam": 10.0, "rank": 2}}
+    cfg = FTConfig(model="tiny-random", max_steps=6, eval_every=3, batch_size=4, n_train=40, n_val=12, n_eval=20,
+                   max_len=128)
+    res = run_twin_ft(data, E, "R1", ctx, tuned, BaseConfig(max_iter=50, device="cpu"), cfg,
+                      n_sparse=10, n_known=3, k_cold=3, seed=0, log=lambda *_: None)
+    z = np.array([r["z_twin"] for r in res["rows"]])
+    assert len(z) == 20 and np.isfinite(z).all() and res["fit"]["best_step"] > 0
